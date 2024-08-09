@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,6 +25,7 @@ import (
 
 	"github.com/operator-framework/operator-controller/api/v1alpha1"
 	oclabels "github.com/operator-framework/operator-controller/internal/labels"
+	cgocache "k8s.io/client-go/tools/cache"
 )
 
 type Watcher interface {
@@ -36,6 +40,7 @@ type RestConfigMapper func(context.Context, client.Object, *rest.Config) (*rest.
 type extensionCacheData struct {
 	Cache  cache.Cache
 	Cancel context.CancelFunc
+	GVKs   sets.Set[schema.GroupVersionKind]
 }
 
 type instance struct {
@@ -44,16 +49,18 @@ type instance struct {
 	extensionCaches map[string]extensionCacheData
 	mapper          meta.RESTMapper
 	mu              *sync.Mutex
+	syncTimeout     time.Duration
 }
 
 // New creates a new ContentManager object
-func New(rcm RestConfigMapper, cfg *rest.Config, mapper meta.RESTMapper) Watcher {
+func New(rcm RestConfigMapper, cfg *rest.Config, mapper meta.RESTMapper, syncTimeout time.Duration) Watcher {
 	return &instance{
 		rcm:             rcm,
 		baseCfg:         cfg,
 		extensionCaches: make(map[string]extensionCacheData),
 		mapper:          mapper,
 		mu:              &sync.Mutex{},
+		syncTimeout:     syncTimeout,
 	}
 }
 
@@ -63,7 +70,7 @@ func New(rcm RestConfigMapper, cfg *rest.Config, mapper meta.RESTMapper) Watcher
 //
 // If a provided client.Object does not set a Version or Kind field in its
 // GroupVersionKind, an error will be returned.
-func buildScheme(objs []client.Object) (*runtime.Scheme, error) {
+func buildScheme(gvks []schema.GroupVersionKind) (*runtime.Scheme, error) {
 	scheme := runtime.NewScheme()
 	// The ClusterExtension types must be added to the scheme since its
 	// going to be used to establish watches that trigger reconciliation
@@ -72,6 +79,38 @@ func buildScheme(objs []client.Object) (*runtime.Scheme, error) {
 		return nil, fmt.Errorf("adding operator controller APIs to scheme: %w", err)
 	}
 
+	for _, gvk := range gvks {
+		listGVK := schema.GroupVersionKind{
+			Group:   gvk.Group,
+			Version: gvk.Version,
+			Kind:    gvk.Kind + "List",
+		}
+
+		if !scheme.Recognizes(gvk) {
+			// Since we can't have a mapping to every possible Go type in existence
+			// based on the GVK we need to use the unstructured types for mapping
+			u := &unstructured.Unstructured{}
+			u.SetGroupVersionKind(gvk)
+			scheme.AddKnownTypeWithName(gvk, u)
+
+			// Adding the common meta schemas to the scheme for the GroupVersion
+			// is necessary to ensure the scheme is aware of the different operations
+			// that can be performed against the resources in this GroupVersion
+			metav1.AddToGroupVersion(scheme, gvk.GroupVersion())
+		}
+
+		if !scheme.Recognizes(listGVK) {
+			ul := &unstructured.UnstructuredList{}
+			ul.SetGroupVersionKind(listGVK)
+			scheme.AddKnownTypeWithName(listGVK, ul)
+		}
+	}
+
+	return scheme, nil
+}
+
+func gvksForObjects(objs []client.Object) (sets.Set[schema.GroupVersionKind], error) {
+	gvkSet := sets.New[schema.GroupVersionKind]()
 	for _, obj := range objs {
 		gvk := obj.GetObjectKind().GroupVersionKind()
 
@@ -82,38 +121,22 @@ func buildScheme(objs []client.Object) (*runtime.Scheme, error) {
 		// field
 		if gvk.Kind == "" {
 			return nil, fmt.Errorf(
-				"adding %s to scheme; object Kind is not defined",
+				"adding %s to set; object Kind is not defined",
 				obj.GetName(),
 			)
 		}
 
 		if gvk.Version == "" {
 			return nil, fmt.Errorf(
-				"adding %s to scheme; object Version is not defined",
+				"adding %s to set; object Version is not defined",
 				obj.GetName(),
 			)
 		}
 
-		listKind := gvk.Kind + "List"
-
-		if !scheme.Recognizes(gvk) {
-			// Since we can't have a mapping to every possible Go type in existence
-			// based on the GVK we need to use the unstructured types for mapping
-			u := &unstructured.Unstructured{}
-			u.SetGroupVersionKind(gvk)
-			ul := &unstructured.UnstructuredList{}
-			ul.SetGroupVersionKind(gvk.GroupVersion().WithKind(listKind))
-
-			scheme.AddKnownTypeWithName(gvk, u)
-			scheme.AddKnownTypeWithName(gvk.GroupVersion().WithKind(listKind), ul)
-			// Adding the common meta schemas to the scheme for the GroupVersion
-			// is necessary to ensure the scheme is aware of the different operations
-			// that can be performed against the resources in this GroupVersion
-			metav1.AddToGroupVersion(scheme, gvk.GroupVersion())
-		}
+		gvkSet.Insert(gvk)
 	}
 
-	return scheme, nil
+	return gvkSet, nil
 }
 
 // Watch configures a controller-runtime cache.Cache and establishes watches for the provided resources.
@@ -122,6 +145,9 @@ func buildScheme(objs []client.Object) (*runtime.Scheme, error) {
 // For each client.Object provided, a new source.Kind is created and used in a call to the Watch() method
 // of the provided controller.Controller to establish new watches for the managed resources.
 func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1alpha1.ClusterExtension, objs []client.Object) error {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
 	if len(objs) == 0 || ce == nil || ctrl == nil {
 		return nil
 	}
@@ -131,7 +157,19 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		return fmt.Errorf("getting rest.Config for ClusterExtension %q: %w", ce.Name, err)
 	}
 
-	scheme, err := buildScheme(objs)
+	// TODO: Cleanup error messages to no longer have CE name
+	gvkSet, err := gvksForObjects(objs)
+	if err != nil {
+		return fmt.Errorf("getting set of GVKs for objects managed by ClusterExtension %q: %w", ce.Name, err)
+	}
+
+	if extensionCacheData, ok := i.extensionCaches[ce.Name]; ok {
+		if gvkSet.Difference(extensionCacheData.GVKs).Len() == 0 {
+			return nil
+		}
+	}
+
+	scheme, err := buildScheme(gvkSet.UnsortedList())
 	if err != nil {
 		return fmt.Errorf("building scheme for ClusterExtension %q: %w", ce.GetName(), err)
 	}
@@ -141,9 +179,21 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		oclabels.OwnerNameKey: ce.GetName(),
 	}
 
+	infErrChan := make(chan error)
+	infErrs := []error{}
+	go func() {
+		for err := range infErrChan {
+			infErrs = append(infErrs, err)
+		}
+	}()
+
 	c, err := cache.New(cfg, cache.Options{
 		Scheme:               scheme,
 		DefaultLabelSelector: tgtLabels.AsSelector(),
+		DefaultWatchErrorHandler: func(r *cgocache.Reflector, err error) {
+			infErrChan <- err
+			cgocache.DefaultWatchErrorHandler(r, err)
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("creating cache for ClusterExtension %q: %w", ce.Name, err)
@@ -180,7 +230,6 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 	// Doing this in a follow-up gives us the opportunity to verify that this functions
 	// as expected when wired up in the ClusterExtension reconciler before going too deep
 	// in optimizations.
-	i.mu.Lock()
 	if extCache, ok := i.extensionCaches[ce.GetName()]; ok {
 		extCache.Cancel()
 	}
@@ -189,8 +238,8 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 	i.extensionCaches[ce.Name] = extensionCacheData{
 		Cache:  c,
 		Cancel: cancel,
+		GVKs:   gvkSet,
 	}
-	i.mu.Unlock()
 
 	go func() {
 		err := c.Start(cacheCtx)
@@ -199,12 +248,15 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		}
 	}()
 
-	if !c.WaitForCacheSync(cacheCtx) {
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), i.syncTimeout)
+	defer cancel()
+
+	if !c.WaitForCacheSync(timeoutCtx) {
 		i.Unwatch(ce)
-		return errors.New("cache could not sync, it has been stopped and removed")
 	}
 
-	return nil
+	close(infErrChan)
+	return errors.Join(infErrs...)
 }
 
 // Unwatch will stop the cache for the provided ClusterExtension

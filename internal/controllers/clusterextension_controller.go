@@ -48,7 +48,6 @@ import (
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
 
 	ocv1alpha1 "github.com/operator-framework/operator-controller/api/v1alpha1"
-	"github.com/operator-framework/operator-controller/internal/applier"
 	"github.com/operator-framework/operator-controller/internal/bundleutil"
 	"github.com/operator-framework/operator-controller/internal/conditionsets"
 	"github.com/operator-framework/operator-controller/internal/contentmanager"
@@ -271,22 +270,17 @@ func (r *ClusterExtensionReconciler) reconcile(ctx context.Context, ext *ocv1alp
 	}
 
 	l.V(1).Info("applying bundle contents")
-	managedObjs, state, err := r.Applier.Apply(ctx, unpackResult.Bundle, ext, lbls)
+	managedObjs, _, err := r.Applier.Apply(ctx, unpackResult.Bundle, ext, lbls)
 	if err != nil {
 		setInstalledStatusConditionFailed(ext, err.Error())
 		return ctrl.Result{}, err
 	}
 
-	// Only attempt to watch resources if we are
-	// installing / upgrading. Otherwise we may restart
-	// watches that have already been established
-	if state != applier.StateUnchanged {
-		l.V(1).Info("watching managed objects")
-		if err := r.Watcher.Watch(ctx, r.controller, ext, managedObjs); err != nil {
-			ext.Status.InstalledBundle = nil
-			setInstalledStatusConditionFailed(ext, fmt.Sprintf("%s:%v", ocv1alpha1.ReasonInstallationFailed, err))
-			return ctrl.Result{}, err
-		}
+	l.V(1).Info("watching managed objects")
+	if err := r.Watcher.Watch(ctx, r.controller, ext, managedObjs); err != nil {
+		ext.Status.InstalledBundle = nil
+		setInstalledStatusConditionFailed(ext, fmt.Sprintf("%s:%v", ocv1alpha1.ReasonInstallationFailed, err))
+		return ctrl.Result{}, err
 	}
 
 	ext.Status.InstalledBundle = bundleutil.MetadataFor(resolvedBundle.Name, *resolvedBundleVersion)
