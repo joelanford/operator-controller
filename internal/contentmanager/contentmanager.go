@@ -179,48 +179,9 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		oclabels.OwnerNameKey: ce.GetName(),
 	}
 
-	infErrChan := make(chan error)
-	infErrs := []error{}
-	go func() {
-		for err := range infErrChan {
-			infErrs = append(infErrs, err)
-		}
-	}()
-
-	c, err := cache.New(cfg, cache.Options{
-		Scheme:               scheme,
-		DefaultLabelSelector: tgtLabels.AsSelector(),
-		DefaultWatchErrorHandler: func(r *cgocache.Reflector, err error) {
-			infErrChan <- err
-			cgocache.DefaultWatchErrorHandler(r, err)
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("creating cache for ClusterExtension %q: %w", ce.Name, err)
-	}
-
-	for _, obj := range objs {
-		err = ctrl.Watch(
-			source.Kind(
-				c,
-				obj,
-				handler.TypedEnqueueRequestForOwner[client.Object](
-					scheme,
-					i.mapper,
-					ce,
-					handler.OnlyControllerOwner(),
-				),
-				predicate.Funcs{
-					CreateFunc:  func(tce event.TypedCreateEvent[client.Object]) bool { return false },
-					UpdateFunc:  func(tue event.TypedUpdateEvent[client.Object]) bool { return true },
-					DeleteFunc:  func(tde event.TypedDeleteEvent[client.Object]) bool { return true },
-					GenericFunc: func(tge event.TypedGenericEvent[client.Object]) bool { return true },
-				},
-			),
-		)
-		if err != nil {
-			return fmt.Errorf("creating watch for ClusterExtension %q managed resource %s: %w", ce.Name, obj.GetObjectKind().GroupVersionKind(), err)
-		}
+	iec := &informerErrorCommunicator{
+		mu:   &sync.Mutex{},
+		errs: []error{},
 	}
 
 	// TODO: Instead of stopping the existing cache and replacing it every time
@@ -234,29 +195,99 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		extCache.Cancel()
 	}
 
+	c, err := cache.New(cfg, cache.Options{
+		Scheme:               scheme,
+		DefaultLabelSelector: tgtLabels.AsSelector(),
+		DefaultWatchErrorHandler: func(r *cgocache.Reflector, err error) {
+			iec.WriteError(err)
+			cgocache.DefaultWatchErrorHandler(r, err)
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("creating cache for ClusterExtension %q: %w", ce.Name, err)
+	}
+
 	cacheCtx, cancel := context.WithCancel(context.Background())
+	go func() {
+		err := c.Start(cacheCtx)
+		if err != nil {
+			fmt.Println("XXX DEBUG", "cache start error", err)
+			i.UnwatchLocked(ce)
+		}
+	}()
+
+	//sKinds := []source.SyncingSource{}
+	for _, obj := range objs {
+		kind := source.Kind(
+			c,
+			obj,
+			handler.TypedEnqueueRequestForOwner[client.Object](
+				scheme,
+				i.mapper,
+				ce,
+				handler.OnlyControllerOwner(),
+			),
+			predicate.Funcs{
+				CreateFunc:  func(tce event.TypedCreateEvent[client.Object]) bool { return false },
+				UpdateFunc:  func(tue event.TypedUpdateEvent[client.Object]) bool { return true },
+				DeleteFunc:  func(tde event.TypedDeleteEvent[client.Object]) bool { return true },
+				GenericFunc: func(tge event.TypedGenericEvent[client.Object]) bool { return true },
+			},
+		)
+		err = ctrl.Watch(kind)
+		if err != nil {
+            cancel()
+			return fmt.Errorf("creating watch for ClusterExtension %q managed resource %s: %w", ce.Name, obj.GetObjectKind().GroupVersionKind(), err)
+		}
+		//sKinds = append(sKinds, kind)
+	}
+	// timeoutCtx, timeoutCancel := context.WithTimeout(cacheCtx, i.syncTimeout)
+	// defer timeoutCancel()
+
+	//for _, kind := range sKinds {
+	//	if err := kind.WaitForSync(context.TODO()); err != nil {
+	//		fmt.Println("XXX DEBUG", "SyncingSource WaitForSync error", err)
+	//	}
+	//	}
+
+	csync := c.WaitForCacheSync(context.Background())
+	fmt.Println("XXX DEBUG", "cache synced?", csync)
+
+	if !csync {
+		i.UnwatchLocked(ce)
+	}
+
 	i.extensionCaches[ce.Name] = extensionCacheData{
 		Cache:  c,
 		Cancel: cancel,
 		GVKs:   gvkSet,
 	}
 
-	go func() {
-		err := c.Start(cacheCtx)
-		if err != nil {
-			i.Unwatch(ce)
-		}
-	}()
+	// It seems like the WaitForCacheSync above is still returning
+	// true despite there being permission errors. In order to make sure
+	// we are not missing errors, we must wait for the full timeout
+	// and check for errors. If there are errors, clean up the watches.
+	//select {
+	//case <-timeoutCtx.Done():
+	//	fmt.Println("XXX DEBUG", "timeout done")
+	//    if iec.ReadErrors() != nil {
+	//        i.Unwatch(ce)
+	//    }
+	//}
 
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), i.syncTimeout)
-	defer cancel()
+	return iec.ReadErrors()
+}
 
-	if !c.WaitForCacheSync(timeoutCtx) {
-		i.Unwatch(ce)
+// TODO: Unexport this
+func (i *instance) UnwatchLocked(ce *v1alpha1.ClusterExtension) {
+	if ce == nil {
+		return
 	}
 
-	close(infErrChan)
-	return errors.Join(infErrs...)
+	if extCache, ok := i.extensionCaches[ce.GetName()]; ok {
+		extCache.Cancel()
+		delete(i.extensionCaches, ce.GetName())
+	}
 }
 
 // Unwatch will stop the cache for the provided ClusterExtension
@@ -273,3 +304,31 @@ func (i *instance) Unwatch(ce *v1alpha1.ClusterExtension) {
 	}
 	i.mu.Unlock()
 }
+
+type informerErrorCommunicator struct {
+	mu   *sync.Mutex
+	errs []error
+}
+
+// WriteError writes the provided error to the error channel
+func (iec *informerErrorCommunicator) WriteError(err error) {
+	iec.mu.Lock()
+	defer iec.mu.Unlock()
+	fmt.Println("XXX DEBUG", "WRITING ERROR", err)
+	iec.errs = append(iec.errs, err)
+}
+
+func (iec *informerErrorCommunicator) ReadErrors() error {
+	iec.mu.Lock()
+	defer iec.mu.Unlock()
+	fmt.Println("XXX DEBUG", "READING ERRORS", iec.errs)
+	return errors.Join(iec.errs...)
+}
+
+// Map[GVK]error for each informer
+// if nil, synced success
+// if error, sync error
+// if no key, still syncing
+//
+// Wait function on ^, returns error
+// Go func for all 
