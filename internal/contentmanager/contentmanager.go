@@ -14,6 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,6 +27,7 @@ import (
 
 	"github.com/operator-framework/operator-controller/api/v1alpha1"
 	oclabels "github.com/operator-framework/operator-controller/internal/labels"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	cgocache "k8s.io/client-go/tools/cache"
 )
 
@@ -157,6 +160,11 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		return fmt.Errorf("getting rest.Config for ClusterExtension %q: %w", ce.Name, err)
 	}
 
+	dynamicClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("getting dynamic client: %w", err)
+	}
+
 	// TODO: Cleanup error messages to no longer have CE name
 	gvkSet, err := gvksForObjects(objs)
 	if err != nil {
@@ -179,11 +187,6 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		oclabels.OwnerNameKey: ce.GetName(),
 	}
 
-	iec := &informerErrorCommunicator{
-		mu:   &sync.Mutex{},
-		errs: []error{},
-	}
-
 	// TODO: Instead of stopping the existing cache and replacing it every time
 	// we should stop the informers that are no longer required
 	// and create any new ones as necessary. To keep the initial pass
@@ -198,10 +201,6 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 	c, err := cache.New(cfg, cache.Options{
 		Scheme:               scheme,
 		DefaultLabelSelector: tgtLabels.AsSelector(),
-		DefaultWatchErrorHandler: func(r *cgocache.Reflector, err error) {
-			iec.WriteError(err)
-			cgocache.DefaultWatchErrorHandler(r, err)
-		},
 	})
 	if err != nil {
 		return fmt.Errorf("creating cache for ClusterExtension %q: %w", ce.Name, err)
@@ -212,50 +211,81 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		err := c.Start(cacheCtx)
 		if err != nil {
 			fmt.Println("XXX DEBUG", "cache start error", err)
-			i.UnwatchLocked(ce)
+			i.Unwatch(ce)
 		}
 	}()
 
-	//sKinds := []source.SyncingSource{}
-	for _, obj := range objs {
-		kind := source.Kind(
-			c,
-			obj,
-			handler.TypedEnqueueRequestForOwner[client.Object](
+    // TODO: See about wrapping this lower-level informer interaction
+    // into a source.SyncingSource implementation to reduce confusion
+    // and bugs around cancelation of the cache context
+    informerErrors := []error{}
+	for _, gvk := range gvkSet.UnsortedList() {
+        gvk := gvk
+		sharedInfFact := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, time.Hour*10)
+		restMapping, err := i.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		if err != nil {
+			cancel()
+			return fmt.Errorf("getting resource mapping for GVK %q: %w", gvk, err)
+		}
+
+		gInf := sharedInfFact.ForResource(restMapping.Resource)
+		sharedIndexInf := gInf.Informer()
+
+		iec := &informerErrorCommunicator{}
+		sharedIndexInf.SetWatchErrorHandler(func(r *cgocache.Reflector, err error) {
+            // TODO: Look into a sync.Once to minimize structs/surface area
+            iec.WriteError(err)
+			cgocache.DefaultWatchErrorHandler(r, err)
+		})
+
+		go sharedIndexInf.Run(cacheCtx.Done())
+
+		s := &source.Informer{
+			Informer: sharedIndexInf,
+			Handler: handler.TypedEnqueueRequestForOwner[client.Object](
 				scheme,
 				i.mapper,
 				ce,
 				handler.OnlyControllerOwner(),
 			),
-			predicate.Funcs{
-				CreateFunc:  func(tce event.TypedCreateEvent[client.Object]) bool { return false },
-				UpdateFunc:  func(tue event.TypedUpdateEvent[client.Object]) bool { return true },
-				DeleteFunc:  func(tde event.TypedDeleteEvent[client.Object]) bool { return true },
-				GenericFunc: func(tge event.TypedGenericEvent[client.Object]) bool { return true },
+			Predicates: []predicate.Predicate{
+				predicate.Funcs{
+					CreateFunc:  func(tce event.TypedCreateEvent[client.Object]) bool { return false },
+					UpdateFunc:  func(tue event.TypedUpdateEvent[client.Object]) bool { return true },
+					DeleteFunc:  func(tde event.TypedDeleteEvent[client.Object]) bool { return true },
+					GenericFunc: func(tge event.TypedGenericEvent[client.Object]) bool { return true },
+				},
 			},
-		)
-		err = ctrl.Watch(kind)
-		if err != nil {
-            cancel()
-			return fmt.Errorf("creating watch for ClusterExtension %q managed resource %s: %w", ce.Name, obj.GetObjectKind().GroupVersionKind(), err)
 		}
-		//sKinds = append(sKinds, kind)
+
+		err = ctrl.Watch(s)
+		if err != nil {
+			cancel()
+			return fmt.Errorf("establishing watch for GVK %q: %w", gvk, err)
+		}
+
+		timeoutCtx, timeoutCancel := context.WithTimeout(context.TODO(), i.syncTimeout)
+		defer timeoutCancel()
+        err = wait.PollUntilContextCancel(timeoutCtx, time.Second, true, func(ctx context.Context) (bool, error) {
+			if sharedIndexInf.HasSynced() {
+				return true, nil
+			}
+
+            if iec.ReadErrors() != nil {
+                return false, iec.ReadErrors()
+            }
+
+            return false, nil
+		})
+		if err != nil {
+            informerErrors = append(informerErrors, err)
+		}
 	}
-	// timeoutCtx, timeoutCancel := context.WithTimeout(cacheCtx, i.syncTimeout)
-	// defer timeoutCancel()
 
-	//for _, kind := range sKinds {
-	//	if err := kind.WaitForSync(context.TODO()); err != nil {
-	//		fmt.Println("XXX DEBUG", "SyncingSource WaitForSync error", err)
-	//	}
-	//	}
-
-	csync := c.WaitForCacheSync(context.Background())
-	fmt.Println("XXX DEBUG", "cache synced?", csync)
-
-	if !csync {
-		i.UnwatchLocked(ce)
-	}
+    if err := errors.Join(informerErrors...); err != nil {
+        cancel()
+        return fmt.Errorf("starting cache: %w", err)
+    }
 
 	i.extensionCaches[ce.Name] = extensionCacheData{
 		Cache:  c,
@@ -263,19 +293,7 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		GVKs:   gvkSet,
 	}
 
-	// It seems like the WaitForCacheSync above is still returning
-	// true despite there being permission errors. In order to make sure
-	// we are not missing errors, we must wait for the full timeout
-	// and check for errors. If there are errors, clean up the watches.
-	//select {
-	//case <-timeoutCtx.Done():
-	//	fmt.Println("XXX DEBUG", "timeout done")
-	//    if iec.ReadErrors() != nil {
-	//        i.Unwatch(ce)
-	//    }
-	//}
-
-	return iec.ReadErrors()
+	return nil
 }
 
 // TODO: Unexport this
@@ -306,29 +324,21 @@ func (i *instance) Unwatch(ce *v1alpha1.ClusterExtension) {
 }
 
 type informerErrorCommunicator struct {
-	mu   *sync.Mutex
-	errs []error
+	mu  sync.Mutex
+	err error
 }
 
 // WriteError writes the provided error to the error channel
 func (iec *informerErrorCommunicator) WriteError(err error) {
 	iec.mu.Lock()
 	defer iec.mu.Unlock()
-	fmt.Println("XXX DEBUG", "WRITING ERROR", err)
-	iec.errs = append(iec.errs, err)
+	if err != nil {
+		iec.err = err
+	}
 }
 
 func (iec *informerErrorCommunicator) ReadErrors() error {
 	iec.mu.Lock()
 	defer iec.mu.Unlock()
-	fmt.Println("XXX DEBUG", "READING ERRORS", iec.errs)
-	return errors.Join(iec.errs...)
+	return iec.err
 }
-
-// Map[GVK]error for each informer
-// if nil, synced success
-// if error, sync error
-// if no key, still syncing
-//
-// Wait function on ^, returns error
-// Go func for all 
