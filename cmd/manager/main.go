@@ -254,6 +254,8 @@ func main() {
 		Preflights:         preflights,
 	}
 
+	watcher := contentmanager.New(clientRestConfigMapper, mgr.GetConfig(), mgr.GetRESTMapper(), time.Second*5),
+
 	if err = (&controllers.ClusterExtensionReconciler{
 		Client:                cl,
 		Resolver:              resolver,
@@ -261,7 +263,7 @@ func main() {
 		Applier:               applier,
 		InstalledBundleGetter: &controllers.DefaultInstalledBundleGetter{ActionClientGetter: acg},
 		Finalizers:            clusterExtensionFinalizers,
-		Watcher:               contentmanager.New(clientRestConfigMapper, mgr.GetConfig(), mgr.GetRESTMapper(), time.Second*5),
+		Watcher:               watcher,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterExtension")
 		os.Exit(1)

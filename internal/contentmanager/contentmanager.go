@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
 	"sync"
 	"time"
 
@@ -186,6 +187,9 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		oclabels.OwnerKindKey: v1alpha1.ClusterExtensionKind,
 		oclabels.OwnerNameKey: ce.GetName(),
 	}
+	sharedInfFact := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, time.Hour*10, corev1.NamespaceAll, func(options *metav1.ListOptions) {
+		options.LabelSelector = tgtLabels.String()
+	})
 
 	// TODO: Instead of stopping the existing cache and replacing it every time
 	// we should stop the informers that are no longer required
@@ -199,8 +203,7 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 	}
 
 	c, err := cache.New(cfg, cache.Options{
-		Scheme:               scheme,
-		DefaultLabelSelector: tgtLabels.AsSelector(),
+		Scheme: scheme,
 	})
 	if err != nil {
 		return fmt.Errorf("creating cache for ClusterExtension %q: %w", ce.Name, err)
@@ -215,13 +218,12 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		}
 	}()
 
-    // TODO: See about wrapping this lower-level informer interaction
-    // into a source.SyncingSource implementation to reduce confusion
-    // and bugs around cancelation of the cache context
-    informerErrors := []error{}
+	// TODO: See about wrapping this lower-level informer interaction
+	// into a source.SyncingSource implementation to reduce confusion
+	// and bugs around cancelation of the cache context
+	informerErrors := []error{}
 	for _, gvk := range gvkSet.UnsortedList() {
-        gvk := gvk
-		sharedInfFact := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, time.Hour*10)
+		gvk := gvk
 		restMapping, err := i.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
 			cancel()
@@ -231,10 +233,9 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 		gInf := sharedInfFact.ForResource(restMapping.Resource)
 		sharedIndexInf := gInf.Informer()
 
-		iec := &informerErrorCommunicator{}
 		sharedIndexInf.SetWatchErrorHandler(func(r *cgocache.Reflector, err error) {
-            // TODO: Look into a sync.Once to minimize structs/surface area
-            iec.WriteError(err)
+			// TODO: Look into a sync.Once to minimize structs/surface area
+			iec.WriteError(err)
 			cgocache.DefaultWatchErrorHandler(r, err)
 		})
 
@@ -266,26 +267,26 @@ func (i *instance) Watch(ctx context.Context, ctrl controller.Controller, ce *v1
 
 		timeoutCtx, timeoutCancel := context.WithTimeout(context.TODO(), i.syncTimeout)
 		defer timeoutCancel()
-        err = wait.PollUntilContextCancel(timeoutCtx, time.Second, true, func(ctx context.Context) (bool, error) {
+		err = wait.PollUntilContextCancel(timeoutCtx, time.Second, true, func(ctx context.Context) (bool, error) {
 			if sharedIndexInf.HasSynced() {
 				return true, nil
 			}
 
-            if iec.ReadErrors() != nil {
-                return false, iec.ReadErrors()
-            }
+			if iec.ReadErrors() != nil {
+				return false, iec.ReadErrors()
+			}
 
-            return false, nil
+			return false, nil
 		})
 		if err != nil {
-            informerErrors = append(informerErrors, err)
+			informerErrors = append(informerErrors, err)
 		}
 	}
 
-    if err := errors.Join(informerErrors...); err != nil {
-        cancel()
-        return fmt.Errorf("starting cache: %w", err)
-    }
+	if err := errors.Join(informerErrors...); err != nil {
+		cancel()
+		return fmt.Errorf("starting cache: %w", err)
+	}
 
 	i.extensionCaches[ce.Name] = extensionCacheData{
 		Cache:  c,
