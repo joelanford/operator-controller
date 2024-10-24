@@ -64,6 +64,7 @@ import (
 	"github.com/operator-framework/operator-controller/internal/finalizers"
 	"github.com/operator-framework/operator-controller/internal/httputil"
 	"github.com/operator-framework/operator-controller/internal/resolve"
+	"github.com/operator-framework/operator-controller/internal/rukpak/convert"
 	"github.com/operator-framework/operator-controller/internal/rukpak/preflights/crdupgradesafety"
 	"github.com/operator-framework/operator-controller/internal/rukpak/source"
 	"github.com/operator-framework/operator-controller/internal/scheme"
@@ -92,16 +93,17 @@ func podNamespace() string {
 
 func main() {
 	var (
-		metricsAddr               string
-		certFile                  string
-		keyFile                   string
-		enableLeaderElection      bool
-		probeAddr                 string
-		cachePath                 string
-		operatorControllerVersion bool
-		systemNamespace           string
-		caCertDir                 string
-		globalPullSecret          string
+		metricsAddr                string
+		certFile                   string
+		keyFile                    string
+		enableLeaderElection       bool
+		probeAddr                  string
+		cachePath                  string
+		operatorControllerVersion  bool
+		systemNamespace            string
+		caCertDir                  string
+		registryV1CertProviderName string
+		globalPullSecret           string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "", "The address for the metrics endpoint. Requires tls-cert and tls-key. (Default: ':8443')")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -116,10 +118,14 @@ func main() {
 	flag.StringVar(&systemNamespace, "system-namespace", "", "Configures the namespace that gets used to deploy system resources.")
 	flag.StringVar(&globalPullSecret, "global-pull-secret", "", "The <namespace>/<name> of the global pull secret that is going to be used to pull bundle images.")
 
+	features.InitializeFromCLIFlags(pflag.CommandLine)
+	if features.OperatorControllerFeatureGate.Enabled(features.RegistryV1WebhookSupport) {
+		flag.StringVar(&registryV1CertProviderName, "registry-v1-cert-provider", "", "Certificate provider to use for registry+v1 webhook certificates")
+	}
+
 	klog.InitFlags(flag.CommandLine)
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-	features.OperatorControllerFeatureGate.AddFlag(pflag.CommandLine)
 	pflag.Parse()
 
 	if operatorControllerVersion {
@@ -355,9 +361,16 @@ func main() {
 		crdupgradesafety.NewPreflight(aeClient.CustomResourceDefinitions()),
 	}
 
+	rv1CertProvider, err := convert.CertProviderByName(registryV1CertProviderName)
+	if err != nil {
+		setupLog.Error(err, "failed to load certificate provider")
+		os.Exit(1)
+	}
+
 	applier := &applier.Helm{
 		ActionClientGetter: acg,
 		Preflights:         preflights,
+		ConvertToChartOpts: []convert.ToHelmChartOption{convert.WithCertificateProvider(rv1CertProvider)},
 	}
 
 	cm := contentmanager.NewManager(clientRestConfigMapper, mgr.GetConfig(), mgr.GetRESTMapper())
