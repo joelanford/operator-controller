@@ -1,0 +1,224 @@
+annotations:
+  alm-examples: |-
+    [
+      {
+        "apiVersion": "monitoring.coreos.com/v1",
+        "kind": "Prometheus",
+        "metadata": {
+          "name": "example"
+        },
+        "spec": {
+          "replicas": 2,
+          "serviceAccountName": "prometheus-k8s",
+          "serviceMonitorSelector": {},
+          "ruleSelector": {},
+          "podMonitorSelector": {},
+          "probeSelector": {},
+          "alerting": {
+            "alertmanagers": [
+              {
+                "namespace": "monitoring",
+                "name": "alertmanager-main",
+                "port": "web"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "apiVersion": "monitoring.coreos.com/v1",
+        "kind": "ServiceMonitor",
+        "metadata": {
+          "name": "example"
+        },
+        "spec": {
+          "selector": {
+            "matchLabels": {
+              "operated-prometheus": "true"
+            }
+          },
+          "endpoints": [
+            {
+              "port": "web",
+              "interval": "30s"
+            }
+          ]
+        }
+      },
+      {
+        "apiVersion": "monitoring.coreos.com/v1",
+        "kind": "PodMonitor",
+        "metadata": {
+          "name": "example"
+        },
+        "spec": {
+          "selector": {
+            "matchLabels": {
+              "app": "prometheus"
+            }
+          },
+          "podMetricsEndpoints": [
+            {
+              "port": "web",
+              "interval": "30s"
+            }
+          ]
+        }
+      },
+      {
+        "apiVersion": "monitoring.coreos.com/v1",
+        "kind": "Alertmanager",
+        "metadata": {
+          "name": "alertmanager-main"
+        },
+        "spec": {
+          "replicas": 3,
+          "alertmanagerConfigSelector": {}
+        }
+      },
+      {
+        "apiVersion": "monitoring.coreos.com/v1",
+        "kind": "PrometheusRule",
+        "metadata": {
+          "name": "prometheus-example-rules"
+        },
+        "spec": {
+          "groups": [
+            {
+              "name": "./example.rules",
+              "rules": [
+                {
+                  "alert": "ExampleAlert",
+                  "expr": "vector(1)"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "apiVersion": "monitoring.coreos.com/v1alpha1",
+        "kind": "AlertmanagerConfig",
+        "metadata": {
+          "name": "example"
+        },
+        "spec": {
+          "receivers": [
+            {
+              "name": "example"
+            }
+          ],
+          "route": {
+            "receiver": "example"
+          }
+        }
+      },
+      {
+        "apiVersion": "monitoring.coreos.com/v1alpha1",
+        "kind": "ScrapeConfig",
+        "metadata": { "name": "example" },
+        "spec":
+          {
+            "staticConfigs":
+              [
+                {
+                  "targets": ["example:9090"],
+                  "labels": { "exampleLabel": "example" }
+                }
+              ]
+          }
+      },
+      {
+        "apiVersion": "monitoring.coreos.com/v1",
+        "kind": "Probe",
+        "metadata": { "name": "example" },
+        "spec":
+          {
+            "jobName": "example",
+            "prober": { "url": "blackbox-prometheus-blackbox-exporter:9115" },
+            "targets":
+              {
+                "ingress":
+                  {
+                    "selector": { "matchLabels": { "probe": "example" } },
+                    "namespaceSelector": { "matchNames": ["default"] }
+                  },
+                "module": "http_2xx",
+                "interval": "15s"
+              }
+          }
+      },
+      {
+        "apiVersion": "monitoring.coreos.com/v1alpha1",
+        "kind": "PrometheusAgent",
+        "metadata": { "name": "example" },
+        "spec": {
+            "replicas": 2,
+            "serviceAccountName": "prometheus-k8s",
+            "serviceMonitorSelector": {},
+            "ruleSelector": {},
+            "podMonitorSelector": {},
+            "probeSelector": {}
+        }
+      },
+      {
+        "apiVersion": "monitoring.coreos.com/v1",
+        "kind": "ThanosRuler",
+        "metadata": { "name": "example" },
+        "spec": {
+          "image": "quay.io/thanos/thanos:v0.28.1",
+          "ruleSelector": {
+            "matchLabels": {
+              "role": "example"
+            }
+          },
+          "queryEndpoints": [
+            "dnssrv+_http._tcp.example.monitoring.svc.cluster.local"
+          ]
+        }
+      }
+    ]
+  capabilities: Deep Insights
+  categories: Monitoring
+  certified: "false"
+  containerImage: quay.io/prometheus-operator/prometheus-operator:v0.65.1
+  createdAt: "2023-05-05T18:09:45Z"
+  description: Manage the full lifecycle of configuring and managing Prometheus and
+    Alertmanager servers.
+  operators.operatorframework.io/builder: operator-sdk-v1.28.0
+  operators.operatorframework.io/project_layout: unknown
+  repository: https://github.com/prometheus-operator/prometheus-operator
+  support: Red Hat, Inc.
+description: |
+  The Prometheus Operator for Kubernetes provides easy monitoring definitions for Kubernetes services and deployment and management of Prometheus instances.
+
+  Once installed, the Prometheus Operator provides the following features:
+
+  * **Create/Destroy**: Easily launch a Prometheus instance for your Kubernetes namespace, a specific application or team easily using the Operator.
+  * **Simple Configuration**: Configure the fundamentals of Prometheus like versions, persistence, retention policies, and replicas from a native Kubernetes resource.
+  * **Target Services via Labels**: Automatically generate monitoring target configurations based on familiar Kubernetes label queries; no need to learn a Prometheus specific configuration language.
+
+  ### Other Supported Features
+
+  **High availability**
+
+  Multiple instances are run across failure zones and data is replicated. This keeps your monitoring available during an outage, when you need it most.
+
+  **Updates via automated operations**
+
+  New Prometheus versions are deployed using a rolling update with no downtime, making it easy to stay up to date.
+
+  **Handles the dynamic nature of containers**
+
+  Alerting rules are attached to groups of containers instead of individual instances, which is ideal for the highly dynamic nature of container deployment.
+keywords:
+- prometheus
+- monitoring
+- tsdb
+- alerting
+- observability
+maintainers:
+- email: openshift-operators@redhat.com
+  name: Red Hat
+name: prometheus
+version: 1.0.0

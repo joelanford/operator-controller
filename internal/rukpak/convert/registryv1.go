@@ -39,7 +39,7 @@ type Plain struct {
 	Objects []client.Object
 }
 
-func RegistryV1ToHelmChart(ctx context.Context, rv1 fs.FS, installNamespace string, watchNamespaces []string) (*chart.Chart, error) {
+func LoadRegistryV1(ctx context.Context, rv1 fs.FS) (*RegistryV1, error) {
 	l := log.FromContext(ctx)
 
 	reg := RegistryV1{}
@@ -100,8 +100,16 @@ func RegistryV1ToHelmChart(ctx context.Context, rv1 fs.FS, installNamespace stri
 	}); err != nil {
 		return nil, err
 	}
+	return &reg, nil
+}
 
-	return toChart(reg, installNamespace, watchNamespaces)
+func RegistryV1ToHelmChart(ctx context.Context, rv1 fs.FS, installNamespace string, watchNamespaces []string) (*chart.Chart, error) {
+	reg, err := LoadRegistryV1(ctx, rv1)
+	if err != nil {
+		return nil, err
+	}
+
+	return toChart(*reg, installNamespace, watchNamespaces)
 }
 
 func toChart(in RegistryV1, installNamespace string, watchNamespaces []string) (*chart.Chart, error) {
@@ -195,6 +203,7 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 	for _, depSpec := range in.CSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs {
 		annotations := util.MergeMaps(in.CSV.Annotations, depSpec.Spec.Template.Annotations)
 		annotations["olm.targetNamespaces"] = strings.Join(targetNamespaces, ",")
+		depSpec.Spec.Template.Annotations = annotations
 		deployments = append(deployments, appsv1.Deployment{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Deployment",
@@ -202,10 +211,9 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 			},
 
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   installNamespace,
-				Name:        depSpec.Name,
-				Labels:      depSpec.Label,
-				Annotations: annotations,
+				Namespace: installNamespace,
+				Name:      depSpec.Name,
+				Labels:    depSpec.Label,
 			},
 			Spec: depSpec.Spec,
 		})
