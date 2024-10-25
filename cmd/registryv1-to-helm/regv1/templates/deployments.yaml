@@ -1,6 +1,7 @@
 {{- $installNamespace := .Release.Namespace }}
 {{- $annotations := .Values.csv.metadata.annotations -}}
 
+
 {{- $supportedInstallModes := dict -}}
 {{- range .Values.csv.spec.installModes -}}
   {{- if eq .supported true -}}{{- $_ := set $supportedInstallModes .type true -}}{{- end -}}

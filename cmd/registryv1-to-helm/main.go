@@ -1,23 +1,32 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 
+	"github.com/go-openapi/spec"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
+	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 
+	"github.com/operator-framework/operator-controller/cmd/registryv1-to-helm/internal/parametrize"
 	"github.com/operator-framework/operator-controller/internal/rukpak/convert"
 	"github.com/operator-framework/operator-controller/internal/rukpak/util"
 )
@@ -71,6 +80,7 @@ func convertRegistryV1ToHelm(ctx context.Context, rv1FS fs.FS) (*chart.Chart, er
 
 	chrt := &chart.Chart{
 		Metadata: &chart.Metadata{
+			APIVersion:  "v2",
 			Name:        rv1.PackageName,
 			Version:     rv1.CSV.Spec.Version.String(),
 			Description: rv1.CSV.Spec.Description,
@@ -79,26 +89,54 @@ func convertRegistryV1ToHelm(ctx context.Context, rv1FS fs.FS) (*chart.Chart, er
 			Annotations: rv1.CSV.Annotations,
 		},
 	}
+	if rv1.CSV.Spec.MinKubeVersion != "" {
+		chrt.Metadata.KubeVersion = fmt.Sprintf(">= %s", rv1.CSV.Spec.MinKubeVersion)
+	}
 
 	var errs []error
 
-	for _, saFile := range newServiceAccountFiles(rv1.CSV) {
-		chrt.Templates = append(chrt.Templates, saFile)
+	/////////////////
+	// Setup schema
+	/////////////////
+	valuesSchema, err := newValuesSchemaFile(rv1.CSV)
+	if err != nil {
+		errs = append(errs, err)
 	}
+	chrt.Schema = valuesSchema
+
+	/////////////////
+	// Setup helpers
+	/////////////////
+	chrt.Templates = append(chrt.Templates, newTemplateHelpers(rv1.CSV))
+
+	/////////////////
+	// Setup RBAC
+	/////////////////
+	chrt.Templates = append(chrt.Templates, newServiceAccountFiles(rv1.CSV)...)
 
 	permissionFiles, err := newPermissionsFiles(rv1.CSV)
 	if err != nil {
 		return nil, err
 	}
-	for _, rbacFile := range permissionFiles {
-		chrt.Templates = append(chrt.Templates, rbacFile)
-	}
+	chrt.Templates = append(chrt.Templates, permissionFiles...)
 
 	clusterPermissionFiles, err := newClusterPermissionsFiles(rv1.CSV)
 	for _, rbacFile := range clusterPermissionFiles {
 		chrt.Templates = append(chrt.Templates, rbacFile)
 	}
 
+	///////////////////
+	// Setup Deployment
+	///////////////////
+	deploymentFiles, err := newDeploymentFiles(rv1.CSV)
+	if err != nil {
+		return nil, err
+	}
+	chrt.Templates = append(chrt.Templates, deploymentFiles...)
+
+	//////////////////////////////////////
+	// Add all other static bundle objects
+	//////////////////////////////////////
 	for _, obj := range rv1.Others {
 		f, err := newFile(obj)
 		if err != nil {
@@ -175,41 +213,72 @@ func newPermissionsFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, err
 			continue
 		}
 		name := generateName(csv.Name, perms)
-		yamlRoleBindingData := []byte(fmt.Sprintf(`{{ $installNamespace := .Release.Namespace }}
-{{- range .Values.watchNamespaces -}}
+		yamlData := []byte(fmt.Sprintf(`{{- $installNamespace := .Release.Namespace -}}
+{{- $targetNamespaces := include "olm.targetNamespaces" . -}}
+{{- $name := %[1]q -}}
+{{- $serviceAccountName := %[2]q -}}
+
+{{- $promoteToClusterRole := (eq $targetNamespaces "") -}}
+
+{{- define "rules-%[1]s" -}}
+%[3]s
+{{ end -}}
+
+{{- if $promoteToClusterRole -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $name }}
+{{ template "rules-%[1]s" }}
+{{- else -}}
+{{- range (split "," $targetNamespaces) -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ . }}
+{{ template "rules-%[1]s" }}
+{{- end -}}
+{{- end -}}
+
+{{- if $promoteToClusterRole -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $name }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ $installNamespace }}
+{{- else -}}
+{{- range (split "," $targetNamespaces) -}}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: %s
+  name: {{ $name }}
   namespace: {{ . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: %s
+  name: {{ $name }}
 subjects:
 - kind: ServiceAccount
-  name: %s
+  name: {{ $serviceAccountName }}
   namespace: {{ $installNamespace }}
 {{- end -}}
-`, name, name, perms.ServiceAccountName))
-		files = append(files, &chart.File{
-			Name: fileNameForObject(schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "RoleBinding"}, name),
-			Data: yamlRoleBindingData,
-		})
-
-		yamlRoleData := []byte(fmt.Sprintf(`{{ $installNamespace := .Release.Namespace }}
-{{- range .Values.watchNamespaces -}}
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: %s
-  namespace: {{ . }}
-%s
 {{- end -}}
-`, name, yamlRules))
+`, name, perms.ServiceAccountName, yamlRules))
 		files = append(files, &chart.File{
-			Name: fileNameForObject(schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "Role"}, name),
-			Data: yamlRoleData,
+			Name: fmt.Sprintf("templates/rbac.authorization.k8s.io-csv.permissions-%s.yaml", perms.ServiceAccountName),
+			Data: yamlData,
 		})
 	}
 	if len(errs) > 0 {
@@ -237,36 +306,119 @@ func newClusterPermissionsFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.Fi
 			errs = append(errs, fmt.Errorf("marshal rules for service account %q: %w", perms.ServiceAccountName, err))
 			continue
 		}
-		name := generateName(csv.Name, perms)
-		yamlClusterRoleBindingData := []byte(fmt.Sprintf(`{{ $installNamespace := .Release.Namespace }}
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: %s
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: %s
-subjects:
-- kind: ServiceAccount
-  name: %s
-  namespace: {{ $installNamespace }}
-`, name, name, perms.ServiceAccountName))
-		files = append(files, &chart.File{
-			Name: fileNameForObject(schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRoleBinding"}, name),
-			Data: yamlClusterRoleBindingData,
-		})
 
-		yamlRoleData := []byte(fmt.Sprintf(`{{ $installNamespace := .Release.Namespace }}
+		name := generateName(csv.Name, perms)
+		yamlData := []byte(fmt.Sprintf(`{{- $name := %q -}}
+{{- $serviceAccountName := %q -}}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: %s
+  name: {{ $name }}
 %s
-`, name, yamlRules))
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $name }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+`, name, perms.ServiceAccountName, yamlRules))
 		files = append(files, &chart.File{
-			Name: fileNameForObject(schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}, name),
-			Data: yamlRoleData,
+			Name: fmt.Sprintf("templates/rbac.authorization.k8s.io-csv.clusterPermissions-%s.yaml", perms.ServiceAccountName),
+			Data: yamlData,
+		})
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+	return files, nil
+}
+
+func newTemplateHelpers(csv v1alpha1.ClusterServiceVersion) *chart.File {
+	defaultWatchNamespace := ""
+	for _, installMode := range csv.Spec.InstallModes {
+		if installMode.Supported {
+			switch installMode.Type {
+			case v1alpha1.InstallModeTypeAllNamespaces:
+				defaultWatchNamespace = `""`
+				// If AllNamespaces is supported, we prefer watching all namespaces
+				// over the install namespace, so no need to continue looking.
+				break
+			case v1alpha1.InstallModeTypeOwnNamespace:
+				defaultWatchNamespace = ".Release.Namespace"
+			}
+		}
+	}
+	templateOperatorTargetNamespaces := fmt.Sprintf(`{{- define "olm.targetNamespaces" }}
+    {{- $targetNamespaces := %s -}}
+	{{- with .Values.watchNamespace -}}
+	{{- $targetNamespaces = . -}}
+	{{- end -}}
+	{{- with .Values.watchNamespaces -}}
+	{{- $targetNamespaces = join "," . -}}
+	{{- end -}}
+	{{- $targetNamespaces }}
+{{- end -}}`, defaultWatchNamespace)
+
+	return &chart.File{
+		Name: "templates/_helpers.tpl",
+		Data: []byte(templateOperatorTargetNamespaces),
+	}
+}
+
+func newDeploymentFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, error) {
+	var (
+		files []*chart.File
+		errs  []error
+	)
+
+	csvMetadataAnnotations := csv.GetAnnotations()
+	for _, depSpec := range csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs {
+		dep := appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   depSpec.Name,
+				Labels: depSpec.Label,
+			},
+			Spec: depSpec.Spec,
+		}
+		dep.Spec.Template.SetAnnotations(mergeMaps(dep.Spec.Template.Annotations, csvMetadataAnnotations))
+		delete(dep.Spec.Template.Annotations, "olm.targetNamespaces")
+
+		// Hardcode the deployment with RevisionHistoryLimit=1; this mimics
+		// What OLMv0 does, and is thus a reasonable default.
+		dep.Spec.RevisionHistoryLimit = ptr.To(int32(1))
+
+		var parametrizeInstructions []parametrize.Instruction
+		parametrizeInstructions = append(parametrizeInstructions,
+			parametrize.MergeBlock(`dict "annotations" (dict "olm.targetNamespaces" (include "olm.targetNamespaces" .))`, "spec.template.metadata.annotations"),
+		)
+
+		// TODO: Parameterize the deployment for subscription.spec.config-style config.
+
+		// Execute the parametrize instructions on the deployment.
+		var u unstructured.Unstructured
+		uObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&dep)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("convert deployment %q to unstructured: %w", dep.GetName(), err))
+			continue
+		}
+		u.Object = uObj
+		yamlData, err := parametrize.Execute(u, parametrizeInstructions...)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("parametrize deployment %q: %w", dep.GetName(), err))
+			continue
+		}
+
+		files = append(files, &chart.File{
+			Name: fileNameForObject(schema.GroupKind{Group: "apps", Kind: "Deployment"}, dep.GetName()),
+			Data: yamlData,
 		})
 	}
 	if len(errs) > 0 {
@@ -296,6 +448,93 @@ func generateName(base string, o interface{}) string {
 		return hashStr
 	}
 	return fmt.Sprintf("%s-%s", base, hashStr)
+}
+
+func newValuesSchemaFile(csv v1alpha1.ClusterServiceVersion) ([]byte, error) {
+	valuesSchema := spec.Schema{
+		SchemaProps: spec.SchemaProps{
+			Schema:               "http://json-schema.org/schema#",
+			Type:                 spec.StringOrArray{"object"},
+			Description:          fmt.Sprintf("Values for the %s Helm chart.", csv.GetName()),
+			Properties:           map[string]spec.Schema{},
+			AdditionalProperties: &spec.SchemaOrBool{Allows: false},
+		},
+	}
+
+	watchNamespacesSchema, watchNamespacesPropName, watchNamespacesRequired, ok := getWatchNamespacesSchema(csv)
+	if ok {
+		valuesSchema.Properties[watchNamespacesPropName] = *watchNamespacesSchema
+		if watchNamespacesRequired {
+			valuesSchema.Required = append(valuesSchema.Required, watchNamespacesPropName)
+		}
+	}
+	var jsonDataBuf bytes.Buffer
+	enc := json.NewEncoder(&jsonDataBuf)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(valuesSchema); err != nil {
+		return nil, err
+	}
+	return jsonDataBuf.Bytes(), nil
+}
+
+// watchNamespacesSchemaProperties return the OpenAPI v3 schema for the field that controls the namespace or namespaces to watch.
+// It returns the schema as a byte slice, a boolean indicating if the field is required. If the returned byte slice is nil,
+// the field should not be included in the schema.
+func getWatchNamespacesSchema(csv v1alpha1.ClusterServiceVersion) (*spec.Schema, string, bool, bool) {
+	minLength := math.MaxInt64
+	maxLength := 0
+	for _, installMode := range csv.Spec.InstallModes {
+		if installMode.Supported {
+			switch installMode.Type {
+			case v1alpha1.InstallModeTypeAllNamespaces:
+				minLength = min(minLength, 0)
+				maxLength = max(maxLength, 0)
+			case v1alpha1.InstallModeTypeOwnNamespace:
+				minLength = min(minLength, 0)
+				maxLength = max(maxLength, 1)
+			case v1alpha1.InstallModeTypeSingleNamespace:
+				minLength = min(minLength, 1)
+				maxLength = max(maxLength, 1)
+			case v1alpha1.InstallModeTypeMultiNamespace:
+				minLength = min(minLength, 2)
+				maxLength = max(maxLength, 10)
+			}
+		}
+	}
+	if maxLength == 0 {
+		return nil, "", false, false
+	}
+	isRequired := minLength > 0
+
+	itemSchema := spec.StringProperty()
+	itemSchema.Pattern = `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	itemSchema.Description = "A namespace that the operator should watch."
+	itemSchema.MinLength = ptr.To(int64(1))
+	itemSchema.MaxLength = ptr.To(int64(63))
+
+	if maxLength == 1 {
+		return itemSchema, "watchNamespace", isRequired, true
+	}
+
+	arraySchema := spec.ArrayProperty(itemSchema)
+	arraySchema.Description = "A list of namespaces that the operator should watch."
+	arraySchema.MinItems = ptr.To(int64(minLength))
+	arraySchema.MaxItems = ptr.To(int64(maxLength))
+	return arraySchema, "watchNamespaces", isRequired, true
+}
+
+// mergeMaps takes any number of maps and merges them into a new map.
+// Later maps override keys from earlier maps if there are duplicates.
+func mergeMaps[K comparable, V any](maps ...map[K]V) map[K]V {
+	result := make(map[K]V)
+
+	for _, m := range maps {
+		for k, v := range m {
+			result[k] = v
+		}
+	}
+
+	return result
 }
 
 /*
