@@ -6,14 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"math"
 	"os"
+	"path/filepath"
 
 	"github.com/go-openapi/spec"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -39,11 +40,15 @@ func main() {
 
 func rootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:  "registryv1-to-helm <registry+v1-directory-path> <helm-directory-path>",
-		Args: cobra.ExactArgs(2),
+		Use:  "registryv1-to-helm <registry+v1-directory-path> [output-path]",
+		Args: cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
 			registryv1Path := args[0]
-			helmPath := args[1]
+
+			saveDir := "."
+			if len(args) == 2 {
+				saveDir = args[1]
+			}
 
 			// Do the conversion
 			chrt, err := convertRegistryV1ToHelm(cmd.Context(), os.DirFS(registryv1Path))
@@ -52,10 +57,11 @@ func rootCmd() *cobra.Command {
 				os.Exit(1)
 			}
 
-			if err := chartutil.SaveDir(chrt, helmPath); err != nil {
+			if err := chartutil.SaveDir(chrt, saveDir); err != nil {
 				cmd.PrintErr(err)
 				os.Exit(1)
 			}
+			cmd.Printf("Chart saved to %s\n", filepath.Join(saveDir, chrt.Metadata.Name))
 		},
 	}
 	return cmd
@@ -222,7 +228,7 @@ func newPermissionsFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, err
 
 {{- define "rules-%[1]s" -}}
 %[3]s
-{{ end -}}
+{{- end -}}
 
 {{- if $promoteToClusterRole -}}
 ---
@@ -240,7 +246,7 @@ metadata:
   name: {{ $name }}
   namespace: {{ . }}
 {{ template "rules-%[1]s" }}
-{{- end -}}
+{{ end -}}
 {{- end -}}
 
 {{- if $promoteToClusterRole -}}
@@ -273,7 +279,7 @@ subjects:
 - kind: ServiceAccount
   name: {{ $serviceAccountName }}
   namespace: {{ $installNamespace }}
-{{- end -}}
+{{ end -}}
 {{- end -}}
 `, name, perms.ServiceAccountName, yamlRules))
 		files = append(files, &chart.File{
@@ -342,35 +348,85 @@ subjects:
 }
 
 func newTemplateHelpers(csv v1alpha1.ClusterServiceVersion) *chart.File {
-	defaultWatchNamespace := ""
-	for _, installMode := range csv.Spec.InstallModes {
-		if installMode.Supported {
-			switch installMode.Type {
-			case v1alpha1.InstallModeTypeAllNamespaces:
-				defaultWatchNamespace = `""`
-				// If AllNamespaces is supported, we prefer watching all namespaces
-				// over the install namespace, so no need to continue looking.
-				break
-			case v1alpha1.InstallModeTypeOwnNamespace:
-				defaultWatchNamespace = ".Release.Namespace"
-			}
+	watchNsSetup := getWatchNamespacesSchema(csv)
+	defineTemplate := `{{- define "olm.targetNamespaces" -}}
+%s
+{{- end -}}
+`
+
+	if !watchNsSetup.IncludeField {
+		templateHelperDefaultValue := fmt.Sprintf(`{{- %s -}}`, watchNsSetup.TemplateHelperDefaultValue)
+		return &chart.File{
+			Name: "templates/_helpers.tpl",
+			Data: []byte(fmt.Sprintf(defineTemplate, templateHelperDefaultValue)),
 		}
 	}
-	templateOperatorTargetNamespaces := fmt.Sprintf(`{{- define "olm.targetNamespaces" }}
-    {{- $targetNamespaces := %s -}}
-	{{- with .Values.watchNamespace -}}
-	{{- $targetNamespaces = . -}}
-	{{- end -}}
-	{{- with .Values.watchNamespaces -}}
-	{{- $targetNamespaces = join "," . -}}
-	{{- end -}}
-	{{- $targetNamespaces }}
-{{- end -}}`, defaultWatchNamespace)
 
-	return &chart.File{
-		Name: "templates/_helpers.tpl",
-		Data: []byte(templateOperatorTargetNamespaces),
+	switch watchNsSetup.FieldName {
+	case "installMode":
+		value := `{{- $installMode := .Values.installMode -}}`
+		if !watchNsSetup.Required {
+			value += fmt.Sprintf(`
+{{- if not $installMode -}}
+  {{- $installMode = %s -}}
+{{- end -}}`, watchNsSetup.TemplateHelperDefaultValue)
+		}
+		value += fmt.Sprintf(`
+{{- if eq $installMode "AllNamespaces" -}}
+  {{- "" -}}
+{{- else if eq $installMode "OwnNamespace" -}}
+  {{- .Release.Namespace -}}
+{{- else -}}
+  {{- fail (printf "Unsupported install mode: %%s" $installMode) -}}
+{{- end -}}`)
+
+		return &chart.File{
+			Name: "templates/_helpers.tpl",
+			Data: []byte(fmt.Sprintf(defineTemplate, value)),
+		}
+	case "watchNamespace":
+		value := `{{- $targetNamespaces := .Values.watchNamespace -}}`
+		if !watchNsSetup.Required {
+			value += fmt.Sprintf(`
+{{- if not $targetNamespaces -}}
+  {{- $targetNamespaces = %s -}}
+{{- end -}}`, watchNsSetup.TemplateHelperDefaultValue)
+		}
+		if !watchNsSetup.AllowReleaseNamespace {
+			value += `
+{{- if eq $targetNamespaces .Release.Namespace -}}
+  {{- fail "OwnNamespace mode is not supported. watchNamespace cannot be set to the install namespace" -}}
+{{- end -}}`
+		}
+		value += `
+{{- $targetNamespaces -}}`
+		return &chart.File{
+			Name: "templates/_helpers.tpl",
+			Data: []byte(fmt.Sprintf(defineTemplate, value)),
+		}
+	case "watchNamespaces":
+		value := `{{- $targetNamespaces := .Values.watchNamespaces -}}`
+		if !watchNsSetup.Required {
+			value += fmt.Sprintf(`
+{{- if not $targetNamespaces -}}
+  {{- $targetNamespaces = %s -}}
+{{- end -}}`, watchNsSetup.TemplateHelperDefaultValue)
+		}
+		if !watchNsSetup.AllowReleaseNamespace {
+			value += `
+{{- if has .Release.Namespace $targetNamespaces -}}
+  {{- fail "OwnNamespace mode is not supported. watchNamespaces cannot include the install namespace" -}}
+{{- end -}}`
+		}
+		value += `
+{{- join "," $targetNamespaces -}}`
+		return &chart.File{
+			Name: "templates/_helpers.tpl",
+			Data: []byte(fmt.Sprintf(defineTemplate, value)),
+		}
 	}
+
+	return nil
 }
 
 func newDeploymentFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, error) {
@@ -461,11 +517,11 @@ func newValuesSchemaFile(csv v1alpha1.ClusterServiceVersion) ([]byte, error) {
 		},
 	}
 
-	watchNamespacesSchema, watchNamespacesPropName, watchNamespacesRequired, ok := getWatchNamespacesSchema(csv)
-	if ok {
-		valuesSchema.Properties[watchNamespacesPropName] = *watchNamespacesSchema
-		if watchNamespacesRequired {
-			valuesSchema.Required = append(valuesSchema.Required, watchNamespacesPropName)
+	watchNsConfig := getWatchNamespacesSchema(csv)
+	if watchNsConfig.IncludeField {
+		valuesSchema.Properties[watchNsConfig.FieldName] = *watchNsConfig.Schema
+		if watchNsConfig.Required {
+			valuesSchema.Required = append(valuesSchema.Required, watchNsConfig.FieldName)
 		}
 	}
 	var jsonDataBuf bytes.Buffer
@@ -477,50 +533,191 @@ func newValuesSchemaFile(csv v1alpha1.ClusterServiceVersion) ([]byte, error) {
 	return jsonDataBuf.Bytes(), nil
 }
 
+type watchNamespaceSchemaSetup struct {
+	IncludeField               bool
+	FieldName                  string
+	Required                   bool
+	Schema                     *spec.Schema
+	TemplateHelperDefaultValue string
+	AllowReleaseNamespace      bool
+}
+
 // watchNamespacesSchemaProperties return the OpenAPI v3 schema for the field that controls the namespace or namespaces to watch.
 // It returns the schema as a byte slice, a boolean indicating if the field is required. If the returned byte slice is nil,
 // the field should not be included in the schema.
-func getWatchNamespacesSchema(csv v1alpha1.ClusterServiceVersion) (*spec.Schema, string, bool, bool) {
-	minLength := math.MaxInt64
-	maxLength := 0
+func getWatchNamespacesSchema(csv v1alpha1.ClusterServiceVersion) watchNamespaceSchemaSetup {
+	const (
+		AllNamespaces   = 1 << iota // 1 (0001)
+		OwnNamespace                // 2 (0010)
+		SingleNamespace             // 4 (0100)
+		MultiNamespace              // 8 (1000)
+	)
+	supportedInstallModes := 0
 	for _, installMode := range csv.Spec.InstallModes {
 		if installMode.Supported {
 			switch installMode.Type {
 			case v1alpha1.InstallModeTypeAllNamespaces:
-				minLength = min(minLength, 0)
-				maxLength = max(maxLength, 0)
+				supportedInstallModes |= AllNamespaces
 			case v1alpha1.InstallModeTypeOwnNamespace:
-				minLength = min(minLength, 0)
-				maxLength = max(maxLength, 1)
+				supportedInstallModes |= OwnNamespace
 			case v1alpha1.InstallModeTypeSingleNamespace:
-				minLength = min(minLength, 1)
-				maxLength = max(maxLength, 1)
+				supportedInstallModes |= SingleNamespace
 			case v1alpha1.InstallModeTypeMultiNamespace:
-				minLength = min(minLength, 2)
-				maxLength = max(maxLength, 10)
+				supportedInstallModes |= MultiNamespace
 			}
 		}
 	}
-	if maxLength == 0 {
-		return nil, "", false, false
-	}
-	isRequired := minLength > 0
 
-	itemSchema := spec.StringProperty()
-	itemSchema.Pattern = `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
-	itemSchema.Description = "A namespace that the operator should watch."
-	itemSchema.MinLength = ptr.To(int64(1))
-	itemSchema.MaxLength = ptr.To(int64(63))
-
-	if maxLength == 1 {
-		return itemSchema, "watchNamespace", isRequired, true
+	watchNamespaceSchema := func() *spec.Schema {
+		itemSchema := spec.StringProperty()
+		itemSchema.Pattern = `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+		itemSchema.Description = "A namespace that the operator should watch."
+		itemSchema.MinLength = ptr.To(int64(1))
+		itemSchema.MaxLength = ptr.To(int64(63))
+		return itemSchema
 	}
 
-	arraySchema := spec.ArrayProperty(itemSchema)
-	arraySchema.Description = "A list of namespaces that the operator should watch."
-	arraySchema.MinItems = ptr.To(int64(minLength))
-	arraySchema.MaxItems = ptr.To(int64(maxLength))
-	return arraySchema, "watchNamespaces", isRequired, true
+	watchNamespacesSchema := func(item *spec.Schema, maxLength int64) *spec.Schema {
+		arraySchema := spec.ArrayProperty(item)
+		arraySchema.MinItems = ptr.To(int64(1))
+		arraySchema.MaxItems = ptr.To(maxLength)
+		return arraySchema
+	}
+
+	// 16 cases, for each combination of supported install modes
+	switch supportedInstallModes {
+	case AllNamespaces:
+		return watchNamespaceSchemaSetup{
+			IncludeField:               false,
+			TemplateHelperDefaultValue: `""`,
+		}
+	case AllNamespaces | OwnNamespace:
+		// "installMode" enum
+		schema := spec.StringProperty()
+		schema.Enum = []interface{}{"AllNamespaces", "OwnNamespace"}
+		schema.Default = "AllNamespaces"
+
+		return watchNamespaceSchemaSetup{
+			IncludeField:               true,
+			FieldName:                  "installMode",
+			Required:                   false,
+			Schema:                     schema,
+			AllowReleaseNamespace:      true,
+			TemplateHelperDefaultValue: `"AllNamespaces"`,
+		}
+	case AllNamespaces | OwnNamespace | SingleNamespace:
+		// "watchNamespace" string, optional, .Release.Namespace allowed, unset means all namespaces
+		schema := watchNamespaceSchema()
+		schema.Default = ""
+
+		return watchNamespaceSchemaSetup{
+			IncludeField:               true,
+			FieldName:                  "watchNamespace",
+			Required:                   false,
+			Schema:                     schema,
+			AllowReleaseNamespace:      true,
+			TemplateHelperDefaultValue: `""`,
+		}
+	case AllNamespaces | OwnNamespace | MultiNamespace, AllNamespaces | OwnNamespace | SingleNamespace | MultiNamespace:
+		// "watchNamespaces" array of strings, optional, len(1..10), .Release.Namespace allowed, unset means all namespaces
+		schema := watchNamespacesSchema(watchNamespaceSchema(), 10)
+		schema.Default = []interface{}{corev1.NamespaceAll}
+
+		return watchNamespaceSchemaSetup{
+			IncludeField:               true,
+			FieldName:                  "watchNamespaces",
+			Required:                   false,
+			Schema:                     schema,
+			AllowReleaseNamespace:      true,
+			TemplateHelperDefaultValue: `(list "")`,
+		}
+	case AllNamespaces | SingleNamespace:
+		// "watchNamespace" string, optional, .Release.Namespace not allowed, unset means all namespaces
+		schema := watchNamespaceSchema()
+		schema.Default = ""
+
+		return watchNamespaceSchemaSetup{
+			IncludeField:               true,
+			FieldName:                  "watchNamespace",
+			Required:                   false,
+			Schema:                     schema,
+			AllowReleaseNamespace:      false,
+			TemplateHelperDefaultValue: `""`,
+		}
+	case AllNamespaces | SingleNamespace | MultiNamespace, AllNamespaces | MultiNamespace:
+		// "watchNamespaces" array of strings, optional, len(1..10), .Release.Namespace not allowed, unset means all namespaces
+		singleOrMultiNamespacesListSchema := watchNamespacesSchema(watchNamespaceSchema(), 10)
+		allNamespacesItemSchema := spec.StringProperty()
+		allNamespacesItemSchema.Description = "A namespace string that represents all namespaces."
+		allNamespacesItemSchema.Enum = []interface{}{corev1.NamespaceAll}
+		allNamespacesListSchema := watchNamespacesSchema(allNamespacesItemSchema, 1)
+
+		schema := &spec.Schema{}
+		schema.AnyOf = []spec.Schema{*singleOrMultiNamespacesListSchema, *allNamespacesListSchema}
+		schema.Default = []interface{}{corev1.NamespaceAll}
+
+		return watchNamespaceSchemaSetup{
+			IncludeField:               true,
+			FieldName:                  "watchNamespaces",
+			Required:                   false,
+			Schema:                     schema,
+			AllowReleaseNamespace:      false,
+			TemplateHelperDefaultValue: `(list "")`,
+		}
+	case OwnNamespace:
+		// no field
+		return watchNamespaceSchemaSetup{
+			IncludeField:               false,
+			TemplateHelperDefaultValue: `.Release.Namespace`,
+			AllowReleaseNamespace:      true,
+		}
+	case OwnNamespace | SingleNamespace:
+		// "watchNamespace" string, optional, .Release.Namespace allowed, unset means .Release.Namespace
+		schema := watchNamespaceSchema()
+
+		return watchNamespaceSchemaSetup{
+			IncludeField:               true,
+			FieldName:                  "watchNamespace",
+			Required:                   false,
+			Schema:                     schema,
+			AllowReleaseNamespace:      true,
+			TemplateHelperDefaultValue: `.Release.Namespace`,
+		}
+	case OwnNamespace | SingleNamespace | MultiNamespace, OwnNamespace | MultiNamespace:
+		// "watchNamespaces" array of strings, optional, len(1..10), .Release.Namespace allowed, unset means .Release.Namespace
+		schema := watchNamespacesSchema(watchNamespaceSchema(), 10)
+
+		return watchNamespaceSchemaSetup{
+			IncludeField:               true,
+			FieldName:                  "watchNamespaces",
+			Required:                   false,
+			Schema:                     schema,
+			AllowReleaseNamespace:      true,
+			TemplateHelperDefaultValue: `(list .Release.Namespace)`,
+		}
+	case SingleNamespace:
+		// "watchNamespace" string, required, .Release.Namespace not allowed
+		schema := watchNamespaceSchema()
+		return watchNamespaceSchemaSetup{
+			IncludeField:          true,
+			FieldName:             "watchNamespace",
+			Required:              true,
+			Schema:                schema,
+			AllowReleaseNamespace: false,
+		}
+	case SingleNamespace | MultiNamespace, MultiNamespace:
+		// "watchNamespaces" array of strings, required, len(1..10), .Release.Namespace not allowed
+		schema := watchNamespacesSchema(watchNamespaceSchema(), 10)
+		return watchNamespaceSchemaSetup{
+			IncludeField:          true,
+			FieldName:             "watchNamespaces",
+			Required:              true,
+			Schema:                schema,
+			AllowReleaseNamespace: false,
+		}
+	default:
+		panic("no supported install modes")
+	}
 }
 
 // mergeMaps takes any number of maps and merges them into a new map.
