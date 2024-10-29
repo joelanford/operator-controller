@@ -1080,6 +1080,20 @@ spec:
               labels:
                 control-plane: controller-manager
             spec:
+              affinity:
+                podAntiAffinity:
+                  preferredDuringSchedulingIgnoredDuringExecution:
+                  - podAffinityTerm:
+                      labelSelector:
+                        matchExpressions:
+                        - key: control-plane
+                          operator: In
+                          values:
+                          - controller-manager
+                      topologyKey: kubernetes.io/hostname
+                    weight: 100
+              nodeSelector:
+                origKey1: origValue1
               containers:
               - args:
                 - --secure-listen-address=0.0.0.0:8443
@@ -1129,6 +1143,14 @@ spec:
                 runAsNonRoot: true
               serviceAccountName: argocd-operator-controller-manager
               terminationGracePeriodSeconds: 10
+              tolerations:
+                - effect: NoSchedule
+                  key: node-role.kubernetes.io/master
+              volumes:
+                - name: argocd-operator-token-5z5z2
+                  secret:
+                    defaultMode: 420
+                    secretName: argocd-operator-token-5z5z2
       permissions:
       - rules:
         - apiGroups:

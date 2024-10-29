@@ -8,7 +8,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime/debug"
+	"strings"
 
+	"github.com/blang/semver/v4"
+	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/chart"
@@ -50,8 +54,11 @@ func rootCmd() *cobra.Command {
 				saveDir = args[1]
 			}
 
+			k8sAPIVersion := getKubernetesAPIVersion()
+			openapiSchemaURL := fmt.Sprintf("https://raw.githubusercontent.com/kubernetes/kubernetes/refs/%s/api/openapi-spec/v3/apis__apps__v1_openapi.json", k8sAPIVersion)
+
 			// Do the conversion
-			chrt, err := convertRegistryV1ToHelm(cmd.Context(), os.DirFS(registryv1Path))
+			chrt, err := convertRegistryV1ToHelm(cmd.Context(), os.DirFS(registryv1Path), openapiSchemaURL)
 			if err != nil {
 				cmd.PrintErr(err)
 				os.Exit(1)
@@ -67,7 +74,7 @@ func rootCmd() *cobra.Command {
 	return cmd
 }
 
-func convertRegistryV1ToHelm(ctx context.Context, rv1FS fs.FS) (*chart.Chart, error) {
+func convertRegistryV1ToHelm(ctx context.Context, rv1FS fs.FS, openapiSchemaURL string) (*chart.Chart, error) {
 	rv1, err := convert.LoadRegistryV1(ctx, rv1FS)
 	if err != nil {
 		return nil, err
@@ -104,7 +111,7 @@ func convertRegistryV1ToHelm(ctx context.Context, rv1FS fs.FS) (*chart.Chart, er
 	/////////////////
 	// Setup schema
 	/////////////////
-	valuesSchema, err := newValuesSchemaFile(rv1.CSV)
+	valuesSchema, err := newValuesSchemaFile(rv1.CSV, openapiSchemaURL)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -113,7 +120,8 @@ func convertRegistryV1ToHelm(ctx context.Context, rv1FS fs.FS) (*chart.Chart, er
 	/////////////////
 	// Setup helpers
 	/////////////////
-	chrt.Templates = append(chrt.Templates, newTemplateHelpers(rv1.CSV))
+	chrt.Templates = append(chrt.Templates, newTargetNamespacesTemplateHelper(rv1.CSV))
+	chrt.Templates = append(chrt.Templates, newDeploymentsTemplateHelper(rv1.CSV))
 
 	/////////////////
 	// Setup RBAC
@@ -347,7 +355,55 @@ subjects:
 	return files, nil
 }
 
-func newTemplateHelpers(csv v1alpha1.ClusterServiceVersion) *chart.File {
+func newDeploymentsTemplateHelper(csv v1alpha1.ClusterServiceVersion) *chart.File {
+	var sb bytes.Buffer
+	for _, depSpec := range csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs {
+		snippets := map[string]string{}
+
+		affinityJSON, _ := json.Marshal(depSpec.Spec.Template.Spec.Affinity)
+		snippets["affinity"] = string(affinityJSON)
+
+		nodeSelectorJSON, _ := json.Marshal(depSpec.Spec.Template.Spec.NodeSelector)
+		snippets["nodeSelector"] = string(nodeSelectorJSON)
+
+		selectorJSON, _ := json.Marshal(depSpec.Spec.Selector)
+		snippets["selector"] = string(selectorJSON)
+
+		tolerationsJSON, _ := json.Marshal(depSpec.Spec.Template.Spec.Tolerations)
+		snippets["tolerations"] = string(tolerationsJSON)
+
+		volumesJSON, _ := json.Marshal(depSpec.Spec.Template.Spec.Volumes)
+		snippets["volumes"] = string(volumesJSON)
+
+		for _, container := range depSpec.Spec.Template.Spec.Containers {
+			envJSON, _ := json.Marshal(container.Env)
+			snippets[fmt.Sprintf("%s.env", container.Name)] = string(envJSON)
+
+			envFromJSON, _ := json.Marshal(container.EnvFrom)
+			snippets[fmt.Sprintf("%s.envFrom", container.Name)] = string(envFromJSON)
+
+			resourcesJSON, _ := json.Marshal(container.Resources)
+			snippets[fmt.Sprintf("%s.resources", container.Name)] = string(resourcesJSON)
+
+			volumeMountsJSON, _ := json.Marshal(container.VolumeMounts)
+			snippets[fmt.Sprintf("%s.volumeMounts", container.Name)] = string(volumeMountsJSON)
+		}
+
+		for _, fieldName := range sets.List(sets.KeySet(snippets)) {
+			sb.WriteString(fmt.Sprintf(`{{- define "deployment.%s.%s" -}}
+%s
+{{- end -}}
+
+`, depSpec.Name, fieldName, strings.TrimSpace(snippets[fieldName])))
+		}
+	}
+	return &chart.File{
+		Name: "templates/_helpers.deployments.tpl",
+		Data: sb.Bytes(),
+	}
+}
+
+func newTargetNamespacesTemplateHelper(csv v1alpha1.ClusterServiceVersion) *chart.File {
 	watchNsSetup := getWatchNamespacesSchema(csv)
 	defineTemplate := `{{- define "olm.targetNamespaces" -}}
 %s
@@ -421,7 +477,7 @@ func newTemplateHelpers(csv v1alpha1.ClusterServiceVersion) *chart.File {
 		value += `
 {{- join "," $targetNamespaces -}}`
 		return &chart.File{
-			Name: "templates/_helpers.tpl",
+			Name: "templates/_helpers.targetNamespaces.tpl",
 			Data: []byte(fmt.Sprintf(defineTemplate, value)),
 		}
 	}
@@ -451,12 +507,40 @@ func newDeploymentFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, erro
 		// What OLMv0 does, and is thus a reasonable default.
 		dep.Spec.RevisionHistoryLimit = ptr.To(int32(1))
 
-		var parametrizeInstructions []parametrize.Instruction
-		parametrizeInstructions = append(parametrizeInstructions,
-			parametrize.MergeBlock(`dict "annotations" (dict "olm.targetNamespaces" (include "olm.targetNamespaces" .))`, "spec.template.metadata.annotations"),
-		)
+		dep.Spec.Template.Spec.Affinity = nil
+		dep.Spec.Template.Spec.NodeSelector = nil
+		dep.Spec.Selector = nil
+		dep.Spec.Template.Spec.Tolerations = nil
+		dep.Spec.Template.Spec.Volumes = nil
 
-		// TODO: Parameterize the deployment for subscription.spec.config-style config.
+		for i := range dep.Spec.Template.Spec.Containers {
+			dep.Spec.Template.Spec.Containers[i].Env = nil
+			dep.Spec.Template.Spec.Containers[i].EnvFrom = nil
+			dep.Spec.Template.Spec.Containers[i].Resources = corev1.ResourceRequirements{}
+			dep.Spec.Template.Spec.Containers[i].VolumeMounts = nil
+		}
+
+		var parametrizeInstructions []parametrize.Instruction
+		for _, f := range []func(dep appsv1.Deployment) []parametrize.Instruction{
+			// set annotations["olm.targetNamespaces"] to the value of the helper
+			mergeTargetNamespaces,
+
+			// inject deployment-level and pod-level configuration derived from values
+			overrideAffinity,
+			overrideNodeSelector,
+			overrideSelector,
+			mergeAndDeduplicateTolerationsByEquality,
+			mergeAndOverrideVolumesByName,
+
+			// inject container-level configuration derived from values
+			//mergeButNotOverrideAnnotationsByName,
+			mergeAndOverrideEnvByName,
+			//mergeAndDeduplicateEnvFromByEquality,
+			//overrideResources,
+			//mergeAndOverrideVolumesMountsByName,
+		} {
+			parametrizeInstructions = append(parametrizeInstructions, f(dep)...)
+		}
 
 		// Execute the parametrize instructions on the deployment.
 		var u unstructured.Unstructured
@@ -466,6 +550,8 @@ func newDeploymentFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, erro
 			continue
 		}
 		u.Object = uObj
+		u.SetGroupVersionKind(appsv1.SchemeGroupVersion.WithKind("Deployment"))
+
 		yamlData, err := parametrize.Execute(u, parametrizeInstructions...)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("parametrize deployment %q: %w", dep.GetName(), err))
@@ -481,6 +567,60 @@ func newDeploymentFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, erro
 		return nil, errors.Join(errs...)
 	}
 	return files, nil
+}
+
+func mergeTargetNamespaces(dep appsv1.Deployment) []parametrize.Instruction {
+	dict := `(dict "olm.targetNamespaces" (include "olm.targetNamespaces" .))`
+	if len(dep.Spec.Template.Annotations) == 0 {
+		return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`%s | toJson`, dict), "spec.template.metadata.annotations")}
+	}
+	return []parametrize.Instruction{parametrize.MergeBlock(fmt.Sprintf(`dict "annotations" %s`, dict), "spec.template.metadata.annotations")}
+}
+
+func overrideAffinity(dep appsv1.Deployment) []parametrize.Instruction {
+	return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`if .Values.affinity }}{{ .Values.affinity | toJson}}{{ else }}{{ include "deployment.%s.affinity" . }}{{ end`, dep.Name), "spec.template.spec.affinity")}
+}
+
+func overrideNodeSelector(dep appsv1.Deployment) []parametrize.Instruction {
+	return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`if .Values.nodeSelector }}{{ .Values.nodeSelector | toJson}}{{ else }}{{ include "deployment.%s.nodeSelector" . }}{{ end`, dep.Name), "spec.template.spec.nodeSelector")}
+}
+
+func overrideSelector(dep appsv1.Deployment) []parametrize.Instruction {
+	return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`if .Values.selector }}{{ .Values.selector | toJson}}{{ else }}{{ include "deployment.%s.selector" . }}{{ end`, dep.Name), "spec.selector")}
+}
+
+func mergeAndDeduplicateTolerationsByEquality(dep appsv1.Deployment) []parametrize.Instruction {
+	return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`concat (default (list) .Values.tolerations) (include "deployment.%s.tolerations" . | fromJsonArray) | uniq | toJson`, dep.Name), "spec.template.spec.tolerations")}
+}
+
+func mergeAndOverrideVolumesByName(dep appsv1.Deployment) []parametrize.Instruction {
+	return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`$volumes := default (list) .Values.volumes -}}
+{{- $volumeNames := list -}}
+{{- range $volumes -}}{{- $volumeNames = append $volumeNames .name -}}{{- end -}}
+{{- range (include "deployment.%[1]s.volumes" . | fromJsonArray) -}}
+  {{- if not (has .name $volumeNames) -}}
+    {{- $volumes = append $volumes . -}}
+    {{- $volumeNames = append $volumeNames .name -}}
+  {{- end -}}
+{{- end -}}
+{{- $volumes | toJson`, dep.Name), "spec.template.spec.volumes")}
+}
+
+func mergeAndOverrideEnvByName(dep appsv1.Deployment) []parametrize.Instruction {
+	var instructions []parametrize.Instruction
+	for i, container := range dep.Spec.Template.Spec.Containers {
+		instructions = append(instructions, parametrize.Pipeline(fmt.Sprintf(`$envs := default (list) .Values.env -}}
+{{- $envNames := list -}}
+{{- range $envs -}}{{- $envNames = append $envNames .name -}}{{- end -}}
+{{- range (include "deployment.%[1]s.%[2]s.env" . | fromJsonArray) -}}
+  {{- if not (has .name $envNames) -}}
+    {{- $envs = append $envs . -}}
+    {{- $envNames = append $envNames .name -}}
+  {{- end -}}
+{{- end -}}
+{{- $envs | toJson`, dep.Name, container.Name), fmt.Sprintf("spec.template.spec.containers.%d.env", i)))
+	}
+	return instructions
 }
 
 func fileNameForObject(gk schema.GroupKind, name string) string {
@@ -506,7 +646,7 @@ func generateName(base string, o interface{}) string {
 	return fmt.Sprintf("%s-%s", base, hashStr)
 }
 
-func newValuesSchemaFile(csv v1alpha1.ClusterServiceVersion) ([]byte, error) {
+func newValuesSchemaFile(csv v1alpha1.ClusterServiceVersion, openapiSchemaURL string) ([]byte, error) {
 	valuesSchema := spec.Schema{
 		SchemaProps: spec.SchemaProps{
 			Schema:               "http://json-schema.org/schema#",
@@ -517,6 +657,12 @@ func newValuesSchemaFile(csv v1alpha1.ClusterServiceVersion) ([]byte, error) {
 		},
 	}
 
+	appsV1Definitions, err := getAppsV1Definitions(openapiSchemaURL)
+	if err != nil {
+		return nil, err
+	}
+	valuesSchema.Definitions = appsV1Definitions
+
 	watchNsConfig := getWatchNamespacesSchema(csv)
 	if watchNsConfig.IncludeField {
 		valuesSchema.Properties[watchNsConfig.FieldName] = *watchNsConfig.Schema
@@ -524,6 +670,18 @@ func newValuesSchemaFile(csv v1alpha1.ClusterServiceVersion) ([]byte, error) {
 			valuesSchema.Required = append(valuesSchema.Required, watchNsConfig.FieldName)
 		}
 	}
+
+	valuesSchema.Properties["selector"] = *spec.RefProperty("#/definitions/io.k8s.api.apps.v1.DeploymentSpec/properties/selector")
+	valuesSchema.Properties["nodeSelector"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.PodSpec/properties/nodeSelector")
+	valuesSchema.Properties["tolerations"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.PodSpec/properties/tolerations")
+	valuesSchema.Properties["resources"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.Container/properties/resources")
+	valuesSchema.Properties["envFrom"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.Container/properties/envFrom")
+	valuesSchema.Properties["env"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.Container/properties/env")
+	valuesSchema.Properties["volumes"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.PodSpec/properties/volumes")
+	valuesSchema.Properties["volumeMounts"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.Container/properties/volumeMounts")
+	valuesSchema.Properties["affinity"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.PodSpec/properties/affinity")
+	valuesSchema.Properties["annotations"] = *spec.RefProperty("#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta/properties/annotations")
+
 	var jsonDataBuf bytes.Buffer
 	enc := json.NewEncoder(&jsonDataBuf)
 	enc.SetIndent("", "    ")
@@ -732,6 +890,63 @@ func mergeMaps[K comparable, V any](maps ...map[K]V) map[K]V {
 	}
 
 	return result
+}
+
+func getAppsV1Definitions(openapiSchemaURL string) (spec.Definitions, error) {
+	doc, err := loads.JSONSpec(openapiSchemaURL)
+	if err != nil {
+		return nil, err
+	}
+	var docMap map[string]interface{}
+	if err := json.Unmarshal(doc.Raw(), &docMap); err != nil {
+		return nil, err
+	}
+
+	components, ok := docMap["components"].(map[string]interface{})
+	if !ok {
+		return nil, errors.New("missing components in the Kubernetes API spec")
+	}
+	schemas, ok := components["schemas"].(map[string]interface{})
+	if !ok {
+		return nil, errors.New("missing schemas in the Kubernetes API spec")
+	}
+
+	jsonSchemas, err := json.Marshal(schemas)
+	if err != nil {
+		return nil, err
+	}
+
+	jsonSchemas = bytes.ReplaceAll(jsonSchemas, []byte("#/components/schemas/"), []byte("#/definitions/"))
+
+	var definitions spec.Definitions
+	if err := json.Unmarshal(jsonSchemas, &definitions); err != nil {
+		return nil, err
+	}
+
+	return definitions, nil
+}
+
+func getKubernetesAPIVersion() string {
+	dependency := "k8s.io/api"
+	info, ok := debug.ReadBuildInfo()
+	if ok {
+		for _, dep := range info.Deps {
+			if dep.Path == dependency {
+				vers := strings.TrimPrefix(dep.Version, "v")
+				v := semver.MustParse(vers)
+				if v.Major == 0 {
+					v.Major = 1
+				}
+				if len(v.Pre) > 0 {
+					v.Patch -= 1
+				}
+				v.Pre = nil
+				v.Build = nil
+				return fmt.Sprintf("tags/v%s", v)
+			}
+		}
+	}
+	return "heads/master"
 }
 
 /*
