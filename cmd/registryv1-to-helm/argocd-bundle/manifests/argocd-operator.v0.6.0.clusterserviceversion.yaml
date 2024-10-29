@@ -1105,7 +1105,10 @@ spec:
                 ports:
                 - containerPort: 8443
                   name: https
-                resources: {}
+                resources:
+                  limits:
+                    cpu: 100m
+                    memory: 100Mi
               - args:
                 - --health-probe-bind-address=:8081
                 - --metrics-bind-address=127.0.0.1:8080
@@ -1139,6 +1142,9 @@ spec:
                     - ALL
                   readOnlyRootFilesystem: true
                   runAsNonRoot: true
+                volumeMounts:
+                  - mountPath: /tmp
+                    name: tmp
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: argocd-operator-controller-manager

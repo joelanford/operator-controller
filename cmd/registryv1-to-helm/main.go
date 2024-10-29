@@ -535,9 +535,9 @@ func newDeploymentFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, erro
 			// inject container-level configuration derived from values
 			//mergeButNotOverrideAnnotationsByName,
 			mergeAndOverrideEnvByName,
-			//mergeAndDeduplicateEnvFromByEquality,
-			//overrideResources,
-			//mergeAndOverrideVolumesMountsByName,
+			mergeAndDeduplicateEnvFromByEquality,
+			overrideResources,
+			mergeAndOverrideVolumesMountsByName,
 		} {
 			parametrizeInstructions = append(parametrizeInstructions, f(dep)...)
 		}
@@ -619,6 +619,45 @@ func mergeAndOverrideEnvByName(dep appsv1.Deployment) []parametrize.Instruction 
   {{- end -}}
 {{- end -}}
 {{- $envs | toJson`, dep.Name, container.Name), fmt.Sprintf("spec.template.spec.containers.%d.env", i)))
+	}
+	return instructions
+}
+
+func mergeAndDeduplicateEnvFromByEquality(dep appsv1.Deployment) []parametrize.Instruction {
+	var instructions []parametrize.Instruction
+	for i, container := range dep.Spec.Template.Spec.Containers {
+		instructions = append(instructions, parametrize.Pipeline(
+			fmt.Sprintf(`concat (default (list) .Values.envFrom) (include "deployment.%s.%s.envFrom" . | fromJsonArray) | uniq | toJson`, dep.Name, container.Name),
+			fmt.Sprintf("spec.template.spec.containers.%d.envFrom", i),
+		))
+	}
+	return instructions
+}
+
+func overrideResources(dep appsv1.Deployment) []parametrize.Instruction {
+	var instructions []parametrize.Instruction
+	for i, container := range dep.Spec.Template.Spec.Containers {
+		instructions = append(instructions, parametrize.Pipeline(
+			fmt.Sprintf(`if .Values.resources }}{{ .Values.resources | toJson}}{{ else }}{{ include "deployment.%s.%s.resources" . }}{{ end`, dep.Name, container.Name),
+			fmt.Sprintf("spec.template.spec.containers.%d.resources", i),
+		))
+	}
+	return instructions
+}
+
+func mergeAndOverrideVolumesMountsByName(dep appsv1.Deployment) []parametrize.Instruction {
+	var instructions []parametrize.Instruction
+	for i, container := range dep.Spec.Template.Spec.Containers {
+		instructions = append(instructions, parametrize.Pipeline(fmt.Sprintf(`$volumeMounts := default (list) .Values.volumeMounts -}}
+{{- $volumeMountNames := list -}}
+{{- range $volumeMounts -}}{{- $volumeMountNames = append $volumeMountNames .name -}}{{- end -}}
+{{- range (include "deployment.%[1]s.%[2]s.volumeMounts" . | fromJsonArray) -}}
+  {{- if not (has .name $volumeMountNames) -}}
+    {{- $volumeMounts = append $volumeMounts . -}}
+    {{- $volumeMountNames = append $volumeMountNames .name -}}
+  {{- end -}}
+{{- end -}}
+{{- $volumeMounts | toJson`, dep.Name, container.Name), fmt.Sprintf("spec.template.spec.containers.%d.volumeMounts", i)))
 	}
 	return instructions
 }
