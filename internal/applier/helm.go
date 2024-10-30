@@ -3,6 +3,7 @@ package applier
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,7 +16,6 @@ import (
 	"helm.sh/helm/v3/pkg/postrender"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,7 +23,7 @@ import (
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 
 	ocv1alpha1 "github.com/operator-framework/operator-controller/api/v1alpha1"
-	"github.com/operator-framework/operator-controller/internal/rukpak/convert"
+	convert "github.com/operator-framework/operator-controller/internal/rukpak/convert/v2"
 	"github.com/operator-framework/operator-controller/internal/rukpak/preflights/crdupgradesafety"
 	"github.com/operator-framework/operator-controller/internal/rukpak/util"
 )
@@ -57,11 +57,17 @@ type Helm struct {
 }
 
 func (h *Helm) Apply(ctx context.Context, contentFS fs.FS, ext *ocv1alpha1.ClusterExtension, objectLabels map[string]string, storageLabels map[string]string) ([]client.Object, string, error) {
-	chrt, err := convert.RegistryV1ToHelmChart(ctx, contentFS, ext.Spec.Install.Namespace, []string{corev1.NamespaceAll})
+	chrt, err := convert.RegistryV1ToHelmChart(ctx, contentFS)
 	if err != nil {
 		return nil, "", err
 	}
-	values := chartutil.Values{}
+
+	var values chartutil.Values
+	if valuesJSON := ext.Spec.Install.Values.Raw; valuesJSON != nil {
+		if err := json.Unmarshal(valuesJSON, &values); err != nil {
+			return nil, "", err
+		}
+	}
 
 	ac, err := h.ActionClientGetter.ActionClientFor(ctx, ext)
 	if err != nil {

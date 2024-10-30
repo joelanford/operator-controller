@@ -179,6 +179,24 @@ spec:
                     required:
                     - name
                     type: object
+                  values:
+                    description: |-
+                      values is a map of key-value pairs that provide configuration for the
+                      installation of the package specified in the packageName field.
+
+                      It is an optional field.
+
+                      When specified, it is passed to the package manager to be used during the
+                      installation process. The package manager is responsible for interpreting
+                      the values provided in this field. The bundle that is resolved for the
+                      cluster extension may optionally provide a schema for these values. In that
+                      case, the package manager will validate the values against the schema before
+                      proceeding with the installation.
+
+                      When not specified, the package manager will use the default configuration
+                      of the resolved bundle.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
                 required:
                 - namespace
                 - serviceAccount

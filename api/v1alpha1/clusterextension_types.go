@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/operator-framework/operator-controller/internal/conditionsets"
 )
@@ -150,6 +151,25 @@ type ClusterExtensionInstallConfig struct {
 	//
 	//+optional
 	Preflight *PreflightConfig `json:"preflight,omitempty"`
+
+	// values is a map of key-value pairs that provide configuration for the
+	// installation of the package specified in the packageName field.
+	//
+	// It is an optional field.
+	//
+	// When specified, it is passed to the package manager to be used during the
+	// installation process. The package manager is responsible for interpreting
+	// the values provided in this field. The bundle that is resolved for the
+	// cluster extension may optionally provide a schema for these values. In that
+	// case, the package manager will validate the values against the schema before
+	// proceeding with the installation.
+	//
+	// When not specified, the package manager will use the default configuration
+	// of the resolved bundle.
+	//
+	//+optional
+	//+kubebuilder:pruning:PreserveUnknownFields
+	Values runtime.RawExtension `json:"values,omitempty"`
 }
 
 // CatalogSource defines the required fields for catalog source.

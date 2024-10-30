@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   creationTimestamp: null
   name: argocd-operator-controller-manager
-{{- define "06557055-9c13-423e-b7df-377b5c778fd1" }}
+{{- define "0eaaf115-a938-4125-832b-b211bbc36525" }}
 spec:
   replicas: 1
   revisionHistoryLimit: 1
@@ -196,5 +196,5 @@ spec:
       serviceAccountName: argocd-operator-controller-manager
       terminationGracePeriodSeconds: 10
 {{- end }}{{"\n"}}
-{{- mergeOverwrite (fromYaml (include "06557055-9c13-423e-b7df-377b5c778fd1" .)) (fromYaml (include "deployment.argocd-operator-controller-manager.spec.overrides" .))  | toYaml | indent 0 }}
+{{- mergeOverwrite (fromYaml (include "0eaaf115-a938-4125-832b-b211bbc36525" .)) (fromYaml (include "deployment.argocd-operator-controller-manager.spec.overrides" .))  | toYaml | indent 0 }}
 status: {}
