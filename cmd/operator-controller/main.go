@@ -381,7 +381,12 @@ func run() error {
 		return httputil.BuildHTTPClient(certPoolWatcher)
 	})
 
-	resolver := &resolve.CatalogResolver{
+	bundleResolver := &resolve.BundleResolver{
+		Puller:              imagePuller,
+		Cache:               imageCache,
+		BrittleCacheBaseDir: filepath.Join(cfg.cachePath, "unpack"),
+	}
+	catalogResolver := &resolve.CatalogResolver{
 		WalkCatalogsFunc: resolve.CatalogWalker(
 			func(ctx context.Context, option ...client.ListOption) ([]ocv1.ClusterCatalog, error) {
 				var catalogs ocv1.ClusterCatalogList
@@ -396,6 +401,9 @@ func run() error {
 			resolve.NoDependencyValidation,
 		},
 	}
+	resolver := resolve.MultiResolver{}
+	resolver.RegisterType(ocv1.SourceTypeBundle, bundleResolver)
+	resolver.RegisterType(ocv1.SourceTypeCatalog, catalogResolver)
 
 	aeClient, err := apiextensionsv1client.NewForConfig(mgr.GetConfig())
 	if err != nil {
