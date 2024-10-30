@@ -45,6 +45,14 @@ func convertRegistryV1ToHelm(ctx context.Context, rv1FS fs.FS, openapiSchemaURL 
 		return nil, err
 	}
 
+	if len(rv1.CSV.Spec.APIServiceDefinitions.Owned) > 0 {
+		return nil, fmt.Errorf("apiServiceDefintions are not supported")
+	}
+
+	if len(rv1.CSV.Spec.WebhookDefinitions) > 0 {
+		return nil, fmt.Errorf("webhookDefinitions are not supported")
+	}
+
 	convertMaintainers := func(maintainers []v1alpha1.Maintainer) []*chart.Maintainer {
 		var chrtMaintainers []*chart.Maintainer
 		for _, maintainer := range maintainers {
