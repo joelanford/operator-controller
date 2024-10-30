@@ -39,7 +39,7 @@ rules:
   - create
   - patch
 
-{{- end -}}
+{{ end -}}
 
 {{- if $promoteToClusterRole -}}
 ---
@@ -57,7 +57,7 @@ metadata:
   name: {{ $name }}
   namespace: {{ . }}
 {{ template "rules-argocd-operator.v0-22gmilmgp91wu25is5i2ec598hni8owq3l71bbkl7iz3" }}
-{{ end -}}
+{{- end -}}
 {{- end -}}
 
 {{- if $promoteToClusterRole -}}

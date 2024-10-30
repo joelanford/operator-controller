@@ -22019,32 +22019,6 @@ rules:
   verbs:
   - create
 ---
-# Source: argocd-operator/templates/rbac.authorization.k8s.io.ClusterRole-argocd-operator-metrics-reader.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  creationTimestamp: null
-  name: argocd-operator-metrics-reader
-rules:
-- nonResourceURLs:
-  - /metrics
-  verbs:
-  - get
----
-# Source: argocd-operator/templates/rbac.authorization.k8s.io-csv.clusterPermissions-argocd-operator-controller-manager.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: argocd-operator.v0-1dhiybrldl1gyksid1dk2dqjsc72psdybc7iyvse5gpx
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: argocd-operator.v0-1dhiybrldl1gyksid1dk2dqjsc72psdybc7iyvse5gpx
-subjects:
-- kind: ServiceAccount
-  name: argocd-operator-controller-manager
-  namespace: lanford-io
----
 # Source: argocd-operator/templates/rbac.authorization.k8s.io-csv.permissions-argocd-operator-controller-manager.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -22081,7 +22055,35 @@ rules:
   - events
   verbs:
   - create
-  - patch---
+  - patch
+---
+# Source: argocd-operator/templates/rbac.authorization.k8s.io.ClusterRole-argocd-operator-metrics-reader.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: argocd-operator-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+# Source: argocd-operator/templates/rbac.authorization.k8s.io-csv.clusterPermissions-argocd-operator-controller-manager.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-operator.v0-1dhiybrldl1gyksid1dk2dqjsc72psdybc7iyvse5gpx
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-operator.v0-1dhiybrldl1gyksid1dk2dqjsc72psdybc7iyvse5gpx
+subjects:
+- kind: ServiceAccount
+  name: argocd-operator-controller-manager
+  namespace: lanford-io
+---
+# Source: argocd-operator/templates/rbac.authorization.k8s.io-csv.permissions-argocd-operator-controller-manager.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -22122,7 +22124,9 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 1
-  selector: {"matchLabels":{"control-plane":"controller-manager"}}
+  selector:
+    matchLabels:
+      control-plane: controller-manager
   strategy: {}
   template:
     metadata:
@@ -22256,7 +22260,8 @@ spec:
         categories: Integration & Delivery
         certified: "false"
         containerImage: quay.io/argoprojlabs/argocd-operator@sha256:99aeec24cc406d06d18822347d9ac3ed053a702d8419191e4e681075fed7b9bb
-        description: Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
+        description: Argo CD is a declarative, GitOps continuous delivery tool for
+          Kubernetes.
         olm.targetNamespaces: ""
         operators.operatorframework.io/builder: operator-sdk-v1.10.0+git
         operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
@@ -22266,30 +22271,29 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
-      affinity: null
       containers:
       - args:
         - --secure-listen-address=0.0.0.0:8443
         - --upstream=http://127.0.0.1:8080/
         - --logtostderr=true
         - --v=10
-        env: []
-        envFrom: []
         image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 8443
           name: https
         resources: {}
-        volumeMounts: []
       - args:
         - --health-probe-bind-address=:8081
         - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
         command:
         - /manager
-        env: [{"name":"WATCH_NAMESPACE","valueFrom":{"fieldRef":{"fieldPath":"metadata.annotations['olm.targetNamespaces']"}}}]
-        envFrom: []
+        env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['olm.targetNamespaces']
         image: quay.io/argoprojlabs/argocd-operator@sha256:99aeec24cc406d06d18822347d9ac3ed053a702d8419191e4e681075fed7b9bb
         livenessProbe:
           httpGet:
@@ -22312,12 +22316,8 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
-        volumeMounts: []
-      nodeSelector: null
       securityContext:
         runAsNonRoot: true
       serviceAccountName: argocd-operator-controller-manager
       terminationGracePeriodSeconds: 10
-      tolerations: []
-      volumes: []
 status: {}

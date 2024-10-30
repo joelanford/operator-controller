@@ -236,7 +236,7 @@ func newPermissionsFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, err
 
 {{- define "rules-%[1]s" -}}
 %[3]s
-{{- end -}}
+{{ end -}}
 
 {{- if $promoteToClusterRole -}}
 ---
@@ -254,7 +254,7 @@ metadata:
   name: {{ $name }}
   namespace: {{ . }}
 {{ template "rules-%[1]s" }}
-{{ end -}}
+{{- end -}}
 {{- end -}}
 
 {{- if $promoteToClusterRole -}}
@@ -376,17 +376,8 @@ func newDeploymentsTemplateHelper(csv v1alpha1.ClusterServiceVersion) *chart.Fil
 		snippets["volumes"] = string(volumesJSON)
 
 		for _, container := range depSpec.Spec.Template.Spec.Containers {
-			envJSON, _ := json.Marshal(container.Env)
-			snippets[fmt.Sprintf("%s.env", container.Name)] = string(envJSON)
-
-			envFromJSON, _ := json.Marshal(container.EnvFrom)
-			snippets[fmt.Sprintf("%s.envFrom", container.Name)] = string(envFromJSON)
-
-			resourcesJSON, _ := json.Marshal(container.Resources)
-			snippets[fmt.Sprintf("%s.resources", container.Name)] = string(resourcesJSON)
-
-			volumeMountsJSON, _ := json.Marshal(container.VolumeMounts)
-			snippets[fmt.Sprintf("%s.volumeMounts", container.Name)] = string(volumeMountsJSON)
+			containerJSON, _ := json.Marshal(container)
+			snippets[container.Name] = string(containerJSON)
 		}
 
 		for _, fieldName := range sets.List(sets.KeySet(snippets)) {
@@ -395,7 +386,128 @@ func newDeploymentsTemplateHelper(csv v1alpha1.ClusterServiceVersion) *chart.Fil
 {{- end -}}
 
 `, depSpec.Name, fieldName, strings.TrimSpace(snippets[fieldName])))
+
 		}
+		sb.WriteString(fmt.Sprintf(`{{- define "deployment.%[1]s.spec.overrides" -}}
+  {{- $overrides := dict -}}
+
+  {{- $templateMetadataOverrides := dict
+    "annotations" (dict
+      "olm.targetNamespaces" (include "olm.targetNamespaces" .)
+    )
+  -}}
+
+  {{- $templateSpecOverrides := dict -}}
+  {{- $origAffinity := fromYaml (include "deployment.%[1]s.affinity" .) -}}
+  {{- if .Values.affinity -}}
+    {{- $_ := set $templateSpecOverrides "affinity" .Values.affinity -}}
+  {{- else if $origAffinity -}}
+    {{- $_ := set $templateSpecOverrides "affinity" $origAffinity -}}
+  {{- end -}}
+
+  {{- $origNodeSelector := fromYaml (include "deployment.%[1]s.nodeSelector" .) -}}
+  {{- if .Values.nodeSelector -}}
+    {{- $_ := set $templateSpecOverrides "nodeSelector" .Values.nodeSelector -}}
+  {{- else if $origNodeSelector -}}
+    {{- $_ := set $templateSpecOverrides "nodeSelector" $origNodeSelector -}}
+  {{- end -}}
+
+  {{- $origSelector := fromYaml (include "deployment.%[1]s.selector" .) -}}
+  {{- if .Values.selector -}}
+    {{- $_ := set $overrides "selector" .Values.selector -}}
+  {{- else if $origSelector -}}
+    {{- $_ := set $overrides "selector" $origSelector -}}
+  {{- end -}}
+
+  {{- $origTolerations := fromYaml (include "deployment.%[1]s.tolerations" .) -}}
+  {{- if and $origTolerations .Values.tolerations -}}
+    {{- $_ := set $templateSpecOverrides "tolerations" (concat $origTolerations .Values.tolerations | uniq) -}}
+  {{- else if .Values.tolerations -}}
+    {{- $_ := set $templateSpecOverrides "tolerations" .Values.tolerations -}}
+  {{- else if $origTolerations -}}
+    {{- $_ := set $templateSpecOverrides "tolerations" $origTolerations -}}
+  {{- end -}}
+
+  {{- $origVolumes := fromYaml (include "deployment.%[1]s.volumes" .) -}}
+  {{- if and $origVolumes .Values.volumes -}}
+    {{- $volumes := .Values.volumes -}}
+    {{- $volumeNames := list -}}
+    {{- range $volumes -}}{{- $volumeNames = append $volumeNames .name -}}{{- end -}}
+    {{- range $origVolumes -}}
+      {{- if not (has .name $volumeNames) -}}
+        {{- $volumes = append $volumes . -}}
+        {{- $volumeNames = append $volumeNames .name -}}
+      {{- end -}}
+    {{- end -}}
+    {{- $_ := set $templateSpecOverrides "volumes" $volumes -}}
+  {{- else if .Values.volumes -}}
+    {{- $_ := set $templateSpecOverrides "volumes" .Values.volumes -}}
+  {{- else if $origVolumes -}}
+    {{- $_ := set $templateSpecOverrides "volumes" $origVolumes -}}
+  {{- end -}}
+
+  {{- $containers := list -}}
+`, depSpec.Name))
+
+		for i, container := range depSpec.Spec.Template.Spec.Containers {
+			sb.WriteString(fmt.Sprintf(`
+
+  {{- $origContainer%[1]d := fromYaml (include "deployment.%[2]s.%[3]s" .) -}}
+
+  {{- $origEnv%[1]d := $origContainer%[1]d.env -}}
+  {{- if and $origEnv%[1]d .Values.env -}}
+    {{- $env := .Values.env -}}
+    {{- $envNames := list -}}
+    {{- range $env -}}{{- $envNames = append $envNames .name -}}{{- end -}}
+    {{- range $origEnv%[1]d -}}
+      {{- if not (has .name $envNames) -}}
+        {{- $env = append $env . -}}
+        {{- $envNames = append $envNames .name -}}
+      {{- end -}}
+    {{- end -}}
+    {{- $_ := set $origContainer%[1]d "env" $env -}}
+  {{- else if .Values.env -}}
+    {{- $_ := set $origContainer%[1]d "env" .Values.env -}}
+  {{- end -}}
+
+  {{- $origEnvFrom%[1]d := $origContainer%[1]d.envFrom -}}
+  {{- if and $origEnvFrom%[1]d .Values.envFrom -}}
+    {{- $_ := set $origContainer%[1]d "envFrom" (concat $origEnvFrom%[1]d .Values.envFrom | uniq) -}}
+  {{- else if .Values.envFrom -}}
+    {{- $_ := set $origContainer%[1]d "envFrom" .Values.envFrom -}}
+  {{- end -}}
+
+  {{- $origResources%[1]d := $origContainer%[1]d.resources -}}
+  {{- if .Values.resources -}}
+    {{- $_ := set $origContainer%[1]d "resources" .Values.resources -}}
+  {{- end -}}
+
+  {{- $origVolumeMounts%[1]d := $origContainer%[1]d.volumeMounts -}}
+  {{- if and $origVolumeMounts%[1]d .Values.volumeMounts -}}
+    {{- $volumeMounts := .Values.volumeMounts -}}
+    {{- $volumeMountNames := list -}}
+    {{- range $volumeMounts -}}{{- $volumeMountNames = append $volumeMountNames .name -}}{{- end -}}
+    {{- range $origVolumeMounts%[1]d -}}
+      {{- if not (has .name $volumeMountNames) -}}
+        {{- $volumeMounts = append $volumeMounts . -}}
+        {{- $volumeMountNames = append $volumeMountNames .name -}}
+      {{- end -}}
+    {{- end -}}
+    {{- $_ := set $origContainer%[1]d "volumeMounts" $volumeMounts -}}
+  {{- else if .Values.volumeMounts -}}
+    {{- $_ := set $origContainer%[1]d "volumeMounts" .Values.volumeMounts -}}
+  {{- end -}}
+
+  {{- $containers = append $containers $origContainer%[1]d -}}`, i, depSpec.Name, container.Name))
+		}
+
+		sb.WriteString(`
+  {{- $templateSpecOverrides := merge $templateSpecOverrides (dict "containers" $containers) -}}
+
+  {{- $overrides = merge $overrides (dict "template" (dict "metadata" $templateMetadataOverrides)) -}}
+  {{- $overrides = merge $overrides (dict "template" (dict "spec" $templateSpecOverrides)) -}}
+  {{- dict "spec" $overrides | toYaml -}}
+{{- end -}}`)
 	}
 	return &chart.File{
 		Name: "templates/_helpers.deployments.tpl",
@@ -520,27 +632,7 @@ func newDeploymentFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, erro
 			dep.Spec.Template.Spec.Containers[i].VolumeMounts = nil
 		}
 
-		var parametrizeInstructions []parametrize.Instruction
-		for _, f := range []func(dep appsv1.Deployment) []parametrize.Instruction{
-			// set annotations["olm.targetNamespaces"] to the value of the helper
-			mergeTargetNamespaces,
-
-			// inject deployment-level and pod-level configuration derived from values
-			overrideAffinity,
-			overrideNodeSelector,
-			overrideSelector,
-			mergeAndDeduplicateTolerationsByEquality,
-			mergeAndOverrideVolumesByName,
-
-			// inject container-level configuration derived from values
-			//mergeButNotOverrideAnnotationsByName,
-			mergeAndOverrideEnvByName,
-			mergeAndDeduplicateEnvFromByEquality,
-			overrideResources,
-			mergeAndOverrideVolumesMountsByName,
-		} {
-			parametrizeInstructions = append(parametrizeInstructions, f(dep)...)
-		}
+		insertOverrideTemplating := parametrize.MergeBlock(fmt.Sprintf(`fromYaml (include "deployment.%s.spec.overrides" .)`, dep.Name), "spec")
 
 		// Execute the parametrize instructions on the deployment.
 		var u unstructured.Unstructured
@@ -552,7 +644,7 @@ func newDeploymentFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, erro
 		u.Object = uObj
 		u.SetGroupVersionKind(appsv1.SchemeGroupVersion.WithKind("Deployment"))
 
-		yamlData, err := parametrize.Execute(u, parametrizeInstructions...)
+		yamlData, err := parametrize.Execute(u, insertOverrideTemplating)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("parametrize deployment %q: %w", dep.GetName(), err))
 			continue
@@ -567,99 +659,6 @@ func newDeploymentFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, erro
 		return nil, errors.Join(errs...)
 	}
 	return files, nil
-}
-
-func mergeTargetNamespaces(dep appsv1.Deployment) []parametrize.Instruction {
-	dict := `(dict "olm.targetNamespaces" (include "olm.targetNamespaces" .))`
-	if len(dep.Spec.Template.Annotations) == 0 {
-		return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`%s | toJson`, dict), "spec.template.metadata.annotations")}
-	}
-	return []parametrize.Instruction{parametrize.MergeBlock(fmt.Sprintf(`dict "annotations" %s`, dict), "spec.template.metadata.annotations")}
-}
-
-func overrideAffinity(dep appsv1.Deployment) []parametrize.Instruction {
-	return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`if .Values.affinity }}{{ .Values.affinity | toJson}}{{ else }}{{ include "deployment.%s.affinity" . }}{{ end`, dep.Name), "spec.template.spec.affinity")}
-}
-
-func overrideNodeSelector(dep appsv1.Deployment) []parametrize.Instruction {
-	return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`if .Values.nodeSelector }}{{ .Values.nodeSelector | toJson}}{{ else }}{{ include "deployment.%s.nodeSelector" . }}{{ end`, dep.Name), "spec.template.spec.nodeSelector")}
-}
-
-func overrideSelector(dep appsv1.Deployment) []parametrize.Instruction {
-	return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`if .Values.selector }}{{ .Values.selector | toJson}}{{ else }}{{ include "deployment.%s.selector" . }}{{ end`, dep.Name), "spec.selector")}
-}
-
-func mergeAndDeduplicateTolerationsByEquality(dep appsv1.Deployment) []parametrize.Instruction {
-	return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`concat (default (list) .Values.tolerations) (include "deployment.%s.tolerations" . | fromJsonArray) | uniq | toJson`, dep.Name), "spec.template.spec.tolerations")}
-}
-
-func mergeAndOverrideVolumesByName(dep appsv1.Deployment) []parametrize.Instruction {
-	return []parametrize.Instruction{parametrize.Pipeline(fmt.Sprintf(`$volumes := default (list) .Values.volumes -}}
-{{- $volumeNames := list -}}
-{{- range $volumes -}}{{- $volumeNames = append $volumeNames .name -}}{{- end -}}
-{{- range (include "deployment.%[1]s.volumes" . | fromJsonArray) -}}
-  {{- if not (has .name $volumeNames) -}}
-    {{- $volumes = append $volumes . -}}
-    {{- $volumeNames = append $volumeNames .name -}}
-  {{- end -}}
-{{- end -}}
-{{- $volumes | toJson`, dep.Name), "spec.template.spec.volumes")}
-}
-
-func mergeAndOverrideEnvByName(dep appsv1.Deployment) []parametrize.Instruction {
-	var instructions []parametrize.Instruction
-	for i, container := range dep.Spec.Template.Spec.Containers {
-		instructions = append(instructions, parametrize.Pipeline(fmt.Sprintf(`$envs := default (list) .Values.env -}}
-{{- $envNames := list -}}
-{{- range $envs -}}{{- $envNames = append $envNames .name -}}{{- end -}}
-{{- range (include "deployment.%[1]s.%[2]s.env" . | fromJsonArray) -}}
-  {{- if not (has .name $envNames) -}}
-    {{- $envs = append $envs . -}}
-    {{- $envNames = append $envNames .name -}}
-  {{- end -}}
-{{- end -}}
-{{- $envs | toJson`, dep.Name, container.Name), fmt.Sprintf("spec.template.spec.containers.%d.env", i)))
-	}
-	return instructions
-}
-
-func mergeAndDeduplicateEnvFromByEquality(dep appsv1.Deployment) []parametrize.Instruction {
-	var instructions []parametrize.Instruction
-	for i, container := range dep.Spec.Template.Spec.Containers {
-		instructions = append(instructions, parametrize.Pipeline(
-			fmt.Sprintf(`concat (default (list) .Values.envFrom) (include "deployment.%s.%s.envFrom" . | fromJsonArray) | uniq | toJson`, dep.Name, container.Name),
-			fmt.Sprintf("spec.template.spec.containers.%d.envFrom", i),
-		))
-	}
-	return instructions
-}
-
-func overrideResources(dep appsv1.Deployment) []parametrize.Instruction {
-	var instructions []parametrize.Instruction
-	for i, container := range dep.Spec.Template.Spec.Containers {
-		instructions = append(instructions, parametrize.Pipeline(
-			fmt.Sprintf(`if .Values.resources }}{{ .Values.resources | toJson}}{{ else }}{{ include "deployment.%s.%s.resources" . }}{{ end`, dep.Name, container.Name),
-			fmt.Sprintf("spec.template.spec.containers.%d.resources", i),
-		))
-	}
-	return instructions
-}
-
-func mergeAndOverrideVolumesMountsByName(dep appsv1.Deployment) []parametrize.Instruction {
-	var instructions []parametrize.Instruction
-	for i, container := range dep.Spec.Template.Spec.Containers {
-		instructions = append(instructions, parametrize.Pipeline(fmt.Sprintf(`$volumeMounts := default (list) .Values.volumeMounts -}}
-{{- $volumeMountNames := list -}}
-{{- range $volumeMounts -}}{{- $volumeMountNames = append $volumeMountNames .name -}}{{- end -}}
-{{- range (include "deployment.%[1]s.%[2]s.volumeMounts" . | fromJsonArray) -}}
-  {{- if not (has .name $volumeMountNames) -}}
-    {{- $volumeMounts = append $volumeMounts . -}}
-    {{- $volumeMountNames = append $volumeMountNames .name -}}
-  {{- end -}}
-{{- end -}}
-{{- $volumeMounts | toJson`, dep.Name, container.Name), fmt.Sprintf("spec.template.spec.containers.%d.volumeMounts", i)))
-	}
-	return instructions
 }
 
 func fileNameForObject(gk schema.GroupKind, name string) string {

@@ -68,7 +68,7 @@ func (b *mergeBlock) Replace(in []byte) ([]byte, error) {
 	}
 	// assume data is a map.
 	if _, err = fmt.Fprintf(&replacement,
-		`%s{{- merge (fromYaml (include %q .)) (%s)  | toYaml | indent %d }}`+"\n",
+		`%s{{- mergeOverwrite (fromYaml (include %q .)) (%s)  | toYaml | indent %d }}`+"\n",
 		i, b.marker, b.pipeline, len(i),
 	); err != nil {
 		return nil, err
