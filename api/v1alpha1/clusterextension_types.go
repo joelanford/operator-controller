@@ -73,22 +73,31 @@ type ClusterExtensionSpec struct {
 	Install ClusterExtensionInstallConfig `json:"install"`
 }
 
-const SourceTypeCatalog = "Catalog"
+const (
+	SourceTypeCatalog = "Catalog"
+	SourceTypeBundle  = "Bundle"
+)
 
 // SourceConfig is a discriminated union which selects the installation source.
 // +union
-// +kubebuilder:validation:XValidation:rule="self.sourceType == 'Catalog' && has(self.catalog)",message="sourceType Catalog requires catalog field"
+
+// +kubebuilder:validation:XValidation:rule="has(self.sourceType) && self.sourceType == 'Bundle' ?has(self.bundle) : !has(self.bundle)",message="bundle is required when sourceType is Bundle, and forbidden otherwise"
+// +kubebuilder:validation:XValidation:rule="has(self.sourceType) && self.sourceType == 'Catalog' ?has(self.catalog) : !has(self.catalog)",message="catalog is required when sourceType is Catalog, and forbidden otherwise"
 type SourceConfig struct {
 	// sourceType is a required reference to the type of install source.
 	//
-	// Allowed values are ["Catalog"]
+	// Allowed values are ["Catalog", "Bundle"]
 	//
 	// When this field is set to "Catalog", information for determining the appropriate
 	// bundle of content to install will be fetched from ClusterCatalog resources existing
 	// on the cluster. When using the Catalog sourceType, the catalog field must also be set.
 	//
-	// +unionDiscriminator
-	// +kubebuilder:validation:Enum:="Catalog"
+	// When this field is set to "Bundle", the bundle of content to install is specified
+	// directly. In this case, no interaction with ClusterCatalog resources is necessary.
+	// When using the Bundle sourceType, the bundle field must also be set.
+	//
+	// +unionDiscriminatorq
+	// +kubebuilder:validation:Enum:=Bundle;Catalog
 	SourceType string `json:"sourceType"`
 
 	// catalog is used to configure how information is sourced from a catalog. This field must be defined when sourceType is set to "Catalog",
@@ -96,6 +105,12 @@ type SourceConfig struct {
 	//
 	// +optional.
 	Catalog *CatalogSource `json:"catalog,omitempty"`
+
+	// bundle is used to configure how information is sourced from a bundle. This field must be defined when sourceType is set to "Bundle",
+	// and must be the only field defined for this sourceType.
+	//
+	// +optional.
+	Bundle *BundleSource `json:"bundle,omitempty"`
 }
 
 // ClusterExtensionInstallConfig is a union which selects the clusterExtension installation config.
@@ -360,6 +375,14 @@ type CatalogSource struct {
 	//+kubebuilder:default:=CatalogProvided
 	//+optional
 	UpgradeConstraintPolicy UpgradeConstraintPolicy `json:"upgradeConstraintPolicy,omitempty"`
+}
+
+type BundleSource struct {
+	// ref is an OCI reference to an extension bundle image. Images referenced
+	// must conform to the registry+v1 bundle format.
+
+	//+kubebuilder:validation:Required
+	Ref string `json:"ref"`
 }
 
 // ServiceAccountReference references a serviceAccount.

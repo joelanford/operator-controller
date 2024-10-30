@@ -48,6 +48,8 @@ import (
 
 	catalogd "github.com/operator-framework/catalogd/api/core/v1alpha1"
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
+	"github.com/operator-framework/operator-registry/pkg/image"
+	"github.com/operator-framework/operator-registry/pkg/image/containerdregistry"
 
 	ocv1alpha1 "github.com/operator-framework/operator-controller/api/v1alpha1"
 	"github.com/operator-framework/operator-controller/internal/action"
@@ -258,7 +260,15 @@ func main() {
 		return httputil.BuildHTTPClient(certPoolWatcher)
 	})
 
-	resolver := &resolve.CatalogResolver{
+	bundleResolverRegistry, err := createRegistry(filepath.Join(cachePath, "registry"))
+	if err != nil {
+		setupLog.Error(err, "unable to create registry")
+		os.Exit(1)
+	}
+	bundleResolver := &resolve.BundleResolver{
+		Registry: bundleResolverRegistry,
+	}
+	catalogResolver := &resolve.CatalogResolver{
 		WalkCatalogsFunc: resolve.CatalogWalker(
 			func(ctx context.Context, option ...client.ListOption) ([]catalogd.ClusterCatalog, error) {
 				var catalogs catalogd.ClusterCatalogList
@@ -273,6 +283,9 @@ func main() {
 			resolve.NoDependencyValidation,
 		},
 	}
+	resolver := resolve.MultiResolver{}
+	resolver.RegisterType(ocv1alpha1.SourceTypeBundle, bundleResolver)
+	resolver.RegisterType(ocv1alpha1.SourceTypeCatalog, catalogResolver)
 
 	aeClient, err := apiextensionsv1client.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -355,4 +368,11 @@ func main() {
 		setupLog.Error(err, "failed to cleanup temporary auth file")
 		os.Exit(1)
 	}
+}
+
+func createRegistry(cacheDir string) (image.Registry, error) {
+	if err := os.MkdirAll(cacheDir, 0700); err != nil {
+		return nil, err
+	}
+	return containerdregistry.NewRegistry(containerdregistry.WithCacheDir(cacheDir))
 }

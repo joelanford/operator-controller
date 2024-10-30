@@ -216,6 +216,16 @@ spec:
                     catalog:
                       packageName: example-package
                 properties:
+                  bundle:
+                    description: |-
+                      bundle is used to configure how information is sourced from a bundle. This field must be defined when sourceType is set to "Bundle",
+                      and must be the only field defined for this sourceType.
+                    properties:
+                      ref:
+                        type: string
+                    required:
+                    - ref
+                    type: object
                   catalog:
                     description: |-
                       catalog is used to configure how information is sourced from a catalog. This field must be defined when sourceType is set to "Catalog",
@@ -460,20 +470,31 @@ spec:
                     description: |-
                       sourceType is a required reference to the type of install source.
 
-                      Allowed values are ["Catalog"]
+                      Allowed values are ["Catalog", "Bundle"]
 
                       When this field is set to "Catalog", information for determining the appropriate
                       bundle of content to install will be fetched from ClusterCatalog resources existing
                       on the cluster. When using the Catalog sourceType, the catalog field must also be set.
+
+                      When this field is set to "Bundle", the bundle of content to install is specified
+                      directly. In this case, no interaction with ClusterCatalog resources is necessary.
+                      When using the Bundle sourceType, the bundle field must also be set.
                     enum:
+                    - Bundle
                     - Catalog
                     type: string
                 required:
                 - sourceType
                 type: object
                 x-kubernetes-validations:
-                - message: sourceType Catalog requires catalog field
-                  rule: self.sourceType == 'Catalog' && has(self.catalog)
+                - message: bundle is required when sourceType is Bundle, and forbidden
+                    otherwise
+                  rule: 'has(self.sourceType) && self.sourceType == ''Bundle'' ?has(self.bundle)
+                    : !has(self.bundle)'
+                - message: catalog is required when sourceType is Catalog, and forbidden
+                    otherwise
+                  rule: 'has(self.sourceType) && self.sourceType == ''Catalog'' ?has(self.catalog)
+                    : !has(self.catalog)'
             required:
             - install
             - source
