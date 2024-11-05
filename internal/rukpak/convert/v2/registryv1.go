@@ -71,10 +71,12 @@ func RegistryV1ToHelmChart(ctx context.Context, rv1FS fs.FS) (*chart.Chart, erro
 		chrt.Metadata.KubeVersion = fmt.Sprintf(">= %s", rv1.CSV.Spec.MinKubeVersion)
 	}
 
+	watchNsConfig := getWatchNamespacesSchema(rv1.CSV.Spec.InstallModes)
+
 	/////////////////
 	// Setup schema
 	/////////////////
-	valuesSchema, err := newValuesSchemaFile(rv1.CSV)
+	valuesSchema, err := newValuesSchemaFile(watchNsConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +85,7 @@ func RegistryV1ToHelmChart(ctx context.Context, rv1FS fs.FS) (*chart.Chart, erro
 	/////////////////
 	// Setup helpers
 	/////////////////
-	chrt.Templates = append(chrt.Templates, newTargetNamespacesTemplateHelper(rv1.CSV))
+	chrt.Templates = append(chrt.Templates, newTargetNamespacesTemplateHelper(watchNsConfig))
 	chrt.Templates = append(chrt.Templates, newDeploymentsTemplateHelper(rv1.CSV))
 
 	/////////////////
@@ -173,7 +175,7 @@ func newServiceAccountFiles(csv v1alpha1.ClusterServiceVersion) ([]*chart.File, 
 		}
 		sa.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ServiceAccount"))
 
-		file, err := newFile(&sa, parametrize.Pipeline(".Release.Namespace", "metadata.namespace"))
+		file, err := newFile(&sa)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("create template file for service account %q: %w", saName, err))
 			continue
@@ -495,9 +497,8 @@ func newDeploymentsTemplateHelper(csv v1alpha1.ClusterServiceVersion) *chart.Fil
 	}
 }
 
-func newTargetNamespacesTemplateHelper(csv v1alpha1.ClusterServiceVersion) *chart.File {
+func newTargetNamespacesTemplateHelper(watchNsSetup watchNamespaceSchemaConfig) *chart.File {
 	filename := "templates/_helpers.targetNamespaces.tpl"
-	watchNsSetup := getWatchNamespacesSchema(csv)
 	defineTemplate := `{{- define "olm.targetNamespaces" -}}
 %s
 {{- end -}}
@@ -649,41 +650,34 @@ func generateName(base string, o interface{}) string {
 	return fmt.Sprintf("%s-%s", base, hashStr)
 }
 
-func newValuesSchemaFile(csv v1alpha1.ClusterServiceVersion) ([]byte, error) {
+func newValuesSchemaFile(watchNsConfig watchNamespaceSchemaConfig) ([]byte, error) {
 	valuesSchema := spec.Schema{
 		SchemaProps: spec.SchemaProps{
 			Schema:               "http://json-schema.org/schema#",
 			Type:                 spec.StringOrArray{"object"},
-			Description:          fmt.Sprintf("Values for the %s Helm chart.", csv.GetName()),
-			Properties:           map[string]spec.Schema{},
+			Properties:           spec.SchemaProperties{},
 			AdditionalProperties: &spec.SchemaOrBool{Allows: false},
 		},
 	}
 
-	appsV1Definitions, err := getAppsV1Definitions()
+	definitions, err := getDefinitions(appsV1OpenAPI)
 	if err != nil {
 		return nil, err
 	}
-	valuesSchema.Definitions = appsV1Definitions
+	valuesSchema.Definitions = definitions
 
-	watchNsConfig := getWatchNamespacesSchema(csv)
+	for _, schemaName := range sets.List(sets.KeySet(definitions)) {
+		for propName := range definitions[schemaName].Properties {
+			valuesSchema.Properties[propName] = *spec.RefProperty(fmt.Sprintf("#/definitions/%s/properties/%s", schemaName, propName))
+		}
+	}
+
 	if watchNsConfig.IncludeField {
 		valuesSchema.Properties[watchNsConfig.FieldName] = *watchNsConfig.Schema
 		if watchNsConfig.Required {
 			valuesSchema.Required = append(valuesSchema.Required, watchNsConfig.FieldName)
 		}
 	}
-
-	valuesSchema.Properties["selector"] = *spec.RefProperty("#/definitions/io.k8s.api.apps.v1.DeploymentSpec/properties/selector")
-	valuesSchema.Properties["nodeSelector"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.PodSpec/properties/nodeSelector")
-	valuesSchema.Properties["tolerations"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.PodSpec/properties/tolerations")
-	valuesSchema.Properties["resources"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.Container/properties/resources")
-	valuesSchema.Properties["envFrom"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.Container/properties/envFrom")
-	valuesSchema.Properties["env"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.Container/properties/env")
-	valuesSchema.Properties["volumes"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.PodSpec/properties/volumes")
-	valuesSchema.Properties["volumeMounts"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.Container/properties/volumeMounts")
-	valuesSchema.Properties["affinity"] = *spec.RefProperty("#/definitions/io.k8s.api.core.v1.PodSpec/properties/affinity")
-	valuesSchema.Properties["annotations"] = *spec.RefProperty("#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta/properties/annotations")
 
 	var jsonDataBuf bytes.Buffer
 	enc := json.NewEncoder(&jsonDataBuf)
@@ -694,7 +688,7 @@ func newValuesSchemaFile(csv v1alpha1.ClusterServiceVersion) ([]byte, error) {
 	return jsonDataBuf.Bytes(), nil
 }
 
-type watchNamespaceSchemaSetup struct {
+type watchNamespaceSchemaConfig struct {
 	IncludeField               bool
 	FieldName                  string
 	Required                   bool
@@ -703,10 +697,12 @@ type watchNamespaceSchemaSetup struct {
 	AllowReleaseNamespace      bool
 }
 
+const watchNamespacePattern = `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+
 // watchNamespacesSchemaProperties return the OpenAPI v3 schema for the field that controls the namespace or namespaces to watch.
 // It returns the schema as a byte slice, a boolean indicating if the field is required. If the returned byte slice is nil,
 // the field should not be included in the schema.
-func getWatchNamespacesSchema(csv v1alpha1.ClusterServiceVersion) watchNamespaceSchemaSetup {
+func getWatchNamespacesSchema(installModes []v1alpha1.InstallMode) watchNamespaceSchemaConfig {
 	const (
 		AllNamespaces   = 1 << iota // 1 (0001)
 		OwnNamespace                // 2 (0010)
@@ -714,7 +710,7 @@ func getWatchNamespacesSchema(csv v1alpha1.ClusterServiceVersion) watchNamespace
 		MultiNamespace              // 8 (1000)
 	)
 	supportedInstallModes := 0
-	for _, installMode := range csv.Spec.InstallModes {
+	for _, installMode := range installModes {
 		if installMode.Supported {
 			switch installMode.Type {
 			case v1alpha1.InstallModeTypeAllNamespaces:
@@ -731,8 +727,8 @@ func getWatchNamespacesSchema(csv v1alpha1.ClusterServiceVersion) watchNamespace
 
 	watchNamespaceSchema := func() *spec.Schema {
 		itemSchema := spec.StringProperty()
-		itemSchema.Pattern = `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
-		itemSchema.Description = "A namespace that the operator should watch."
+		itemSchema.Pattern = watchNamespacePattern
+		itemSchema.Description = "A namespace that the extension should watch."
 		itemSchema.MinLength = ptr.To(int64(1))
 		itemSchema.MaxLength = ptr.To(int64(63))
 		return itemSchema
@@ -748,7 +744,7 @@ func getWatchNamespacesSchema(csv v1alpha1.ClusterServiceVersion) watchNamespace
 	// 16 cases, for each combination of supported install modes
 	switch supportedInstallModes {
 	case AllNamespaces:
-		return watchNamespaceSchemaSetup{
+		return watchNamespaceSchemaConfig{
 			IncludeField:               false,
 			TemplateHelperDefaultValue: `""`,
 		}
@@ -756,9 +752,8 @@ func getWatchNamespacesSchema(csv v1alpha1.ClusterServiceVersion) watchNamespace
 		// "installMode" enum
 		schema := spec.StringProperty()
 		schema.Enum = []interface{}{"AllNamespaces", "OwnNamespace"}
-		schema.Default = "AllNamespaces"
 
-		return watchNamespaceSchemaSetup{
+		return watchNamespaceSchemaConfig{
 			IncludeField:               true,
 			FieldName:                  "installMode",
 			Required:                   false,
@@ -768,112 +763,86 @@ func getWatchNamespacesSchema(csv v1alpha1.ClusterServiceVersion) watchNamespace
 		}
 	case AllNamespaces | OwnNamespace | SingleNamespace:
 		// "watchNamespace" string, optional, .Release.Namespace allowed, unset means all namespaces
-		schema := watchNamespaceSchema()
-		schema.Default = ""
-
-		return watchNamespaceSchemaSetup{
+		return watchNamespaceSchemaConfig{
 			IncludeField:               true,
 			FieldName:                  "watchNamespace",
 			Required:                   false,
-			Schema:                     schema,
+			Schema:                     watchNamespaceSchema(),
 			AllowReleaseNamespace:      true,
 			TemplateHelperDefaultValue: `""`,
 		}
 	case AllNamespaces | OwnNamespace | MultiNamespace, AllNamespaces | OwnNamespace | SingleNamespace | MultiNamespace:
 		// "watchNamespaces" array of strings, optional, len(1..10), .Release.Namespace allowed, unset means all namespaces
-		schema := watchNamespacesSchema(watchNamespaceSchema(), 10)
-		schema.Default = []interface{}{corev1.NamespaceAll}
-
-		return watchNamespaceSchemaSetup{
+		return watchNamespaceSchemaConfig{
 			IncludeField:               true,
 			FieldName:                  "watchNamespaces",
 			Required:                   false,
-			Schema:                     schema,
+			Schema:                     watchNamespacesSchema(watchNamespaceSchema(), 10),
 			AllowReleaseNamespace:      true,
 			TemplateHelperDefaultValue: `(list "")`,
 		}
 	case AllNamespaces | SingleNamespace:
 		// "watchNamespace" string, optional, .Release.Namespace not allowed, unset means all namespaces
-		schema := watchNamespaceSchema()
-		schema.Default = ""
-
-		return watchNamespaceSchemaSetup{
+		return watchNamespaceSchemaConfig{
 			IncludeField:               true,
 			FieldName:                  "watchNamespace",
 			Required:                   false,
-			Schema:                     schema,
+			Schema:                     watchNamespaceSchema(),
 			AllowReleaseNamespace:      false,
 			TemplateHelperDefaultValue: `""`,
 		}
 	case AllNamespaces | SingleNamespace | MultiNamespace, AllNamespaces | MultiNamespace:
-		// "watchNamespaces" array of strings, optional, len(1..10), .Release.Namespace not allowed, unset means all namespaces
-		singleOrMultiNamespacesListSchema := watchNamespacesSchema(watchNamespaceSchema(), 10)
-		allNamespacesItemSchema := spec.StringProperty()
-		allNamespacesItemSchema.Description = "A namespace string that represents all namespaces."
-		allNamespacesItemSchema.Enum = []interface{}{corev1.NamespaceAll}
-		allNamespacesListSchema := watchNamespacesSchema(allNamespacesItemSchema, 1)
-
-		schema := &spec.Schema{}
-		schema.AnyOf = []spec.Schema{*singleOrMultiNamespacesListSchema, *allNamespacesListSchema}
-		schema.Default = []interface{}{corev1.NamespaceAll}
-
-		return watchNamespaceSchemaSetup{
+		// "watchNamespaces" array of strings, optional, len(1..10), .Release.Namespace allowed, unset means all namespaces
+		return watchNamespaceSchemaConfig{
 			IncludeField:               true,
 			FieldName:                  "watchNamespaces",
 			Required:                   false,
-			Schema:                     schema,
+			Schema:                     watchNamespacesSchema(watchNamespaceSchema(), 10),
 			AllowReleaseNamespace:      false,
 			TemplateHelperDefaultValue: `(list "")`,
 		}
 	case OwnNamespace:
 		// no field
-		return watchNamespaceSchemaSetup{
+		return watchNamespaceSchemaConfig{
 			IncludeField:               false,
 			TemplateHelperDefaultValue: `.Release.Namespace`,
-			AllowReleaseNamespace:      true,
 		}
 	case OwnNamespace | SingleNamespace:
 		// "watchNamespace" string, optional, .Release.Namespace allowed, unset means .Release.Namespace
-		schema := watchNamespaceSchema()
-
-		return watchNamespaceSchemaSetup{
+		return watchNamespaceSchemaConfig{
 			IncludeField:               true,
 			FieldName:                  "watchNamespace",
 			Required:                   false,
-			Schema:                     schema,
+			Schema:                     watchNamespaceSchema(),
 			AllowReleaseNamespace:      true,
 			TemplateHelperDefaultValue: `.Release.Namespace`,
 		}
 	case OwnNamespace | SingleNamespace | MultiNamespace, OwnNamespace | MultiNamespace:
 		// "watchNamespaces" array of strings, optional, len(1..10), .Release.Namespace allowed, unset means .Release.Namespace
-		schema := watchNamespacesSchema(watchNamespaceSchema(), 10)
-
-		return watchNamespaceSchemaSetup{
+		return watchNamespaceSchemaConfig{
 			IncludeField:               true,
 			FieldName:                  "watchNamespaces",
 			Required:                   false,
-			Schema:                     schema,
+			Schema:                     watchNamespacesSchema(watchNamespaceSchema(), 10),
 			AllowReleaseNamespace:      true,
 			TemplateHelperDefaultValue: `(list .Release.Namespace)`,
 		}
 	case SingleNamespace:
 		// "watchNamespace" string, required, .Release.Namespace not allowed
-		schema := watchNamespaceSchema()
-		return watchNamespaceSchemaSetup{
+		return watchNamespaceSchemaConfig{
 			IncludeField:          true,
 			FieldName:             "watchNamespace",
 			Required:              true,
-			Schema:                schema,
+			Schema:                watchNamespaceSchema(),
 			AllowReleaseNamespace: false,
 		}
 	case SingleNamespace | MultiNamespace, MultiNamespace:
 		// "watchNamespaces" array of strings, required, len(1..10), .Release.Namespace not allowed
-		schema := watchNamespacesSchema(watchNamespaceSchema(), 10)
-		return watchNamespaceSchemaSetup{
+		return watchNamespaceSchemaConfig{
 			IncludeField:          true,
 			FieldName:             "watchNamespaces",
 			Required:              true,
-			Schema:                schema,
+			Schema:                watchNamespacesSchema(watchNamespaceSchema(), 10),
 			AllowReleaseNamespace: false,
 		}
 	default:
@@ -898,9 +867,9 @@ func mergeMaps[K comparable, V any](maps ...map[K]V) map[K]V {
 //go:embed internal/apis__apps__v1_openapi.json
 var appsV1OpenAPI []byte
 
-func getAppsV1Definitions() (spec.Definitions, error) {
+func getDefinitions(openAPISpecBytes []byte) (spec.Definitions, error) {
 	var docMap map[string]interface{}
-	if err := json.Unmarshal(appsV1OpenAPI, &docMap); err != nil {
+	if err := json.Unmarshal(openAPISpecBytes, &docMap); err != nil {
 		return nil, err
 	}
 
@@ -923,6 +892,25 @@ func getAppsV1Definitions() (spec.Definitions, error) {
 	var definitions spec.Definitions
 	if err := json.Unmarshal(jsonSchemas, &definitions); err != nil {
 		return nil, err
+	}
+
+	keep := map[string]sets.Set[string]{
+		"io.k8s.api.apps.v1.DeploymentSpec":               sets.New[string]("selector"),
+		"io.k8s.api.core.v1.PodSpec":                      sets.New[string]("nodeSelector", "tolerations", "selector", "volumes", "affinity"),
+		"io.k8s.api.core.v1.Container":                    sets.New[string]("resources", "envFrom", "env", "volumeMounts"),
+		"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta": sets.New[string]("annotations"),
+	}
+	for defName, def := range definitions {
+		keepProps, ok := keep[defName]
+		if !ok {
+			delete(definitions, defName)
+			continue
+		}
+		for propName := range def.Properties {
+			if !keepProps.Has(propName) {
+				delete(def.Properties, propName)
+			}
+		}
 	}
 
 	return definitions, nil
