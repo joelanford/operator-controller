@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -320,52 +321,77 @@ func Test_newValuesSchemaFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := newValuesSchemaFile(tt.watchNsSchemaSetup)
+			schBytes, err := newValuesSchemaFile(tt.watchNsSchemaSetup)
 			require.NoError(t, err)
-			require.Equal(t, tt.want, string(got))
+
+			var sch spec.Schema
+			require.NoError(t, json.Unmarshal(schBytes, &sch))
 		})
 	}
 }
 
-func Test_getDefinitions(t *testing.T) {
-	assertDefinition := func(t *testing.T, got spec.Definitions, schemaName, propertyName string) {
+func Test_getSchema(t *testing.T) {
+	assertSchema := func(t *testing.T, gotSchema spec.Schema, definitionName, propertyName string) {
 		t.Helper()
-		sch, ok := got[schemaName]
+
+		defSchema, ok := gotSchema.Definitions[definitionName]
 		require.True(t, ok)
-		require.NotNil(t, sch)
-		prop, ok := sch.Properties[propertyName]
+		require.NotNil(t, defSchema)
+		prop, ok := defSchema.Properties[propertyName]
+		assert.True(t, ok)
+		assert.NotNil(t, prop)
+
+		propSchema, ok := gotSchema.Properties[propertyName]
 		require.True(t, ok)
-		require.NotNil(t, prop)
+		require.NotNil(t, propSchema)
+		assert.Equal(t, *spec.RefProperty(fmt.Sprintf("#/definitions/%s/properties/%s", definitionName, propertyName)), propSchema)
 	}
 	tests := []struct {
-		name          string
-		overrideEmbed []byte
-		assert        func(*testing.T, spec.Definitions, error)
+		name            string
+		extraProperties spec.SchemaProperties
+		overrideEmbed   []byte
+		assert          func(*testing.T, *spec.Schema, error)
 	}{
 		{
 			name: "Default",
-			assert: func(t *testing.T, got spec.Definitions, err error) {
+			extraProperties: spec.SchemaProperties{
+				"extra": *spec.StringProperty(),
+			},
+			assert: func(t *testing.T, gotSchema *spec.Schema, err error) {
 				require.NoError(t, err)
-				require.NotNil(t, got)
-				require.NotEmpty(t, got)
-				assertDefinition(t, got, "io.k8s.api.apps.v1.DeploymentSpec", "selector")
-				assertDefinition(t, got, "io.k8s.api.core.v1.PodSpec", "nodeSelector")
-				assertDefinition(t, got, "io.k8s.api.core.v1.PodSpec", "tolerations")
-				assertDefinition(t, got, "io.k8s.api.core.v1.Container", "resources")
-				assertDefinition(t, got, "io.k8s.api.core.v1.Container", "envFrom")
-				assertDefinition(t, got, "io.k8s.api.core.v1.Container", "env")
-				assertDefinition(t, got, "io.k8s.api.core.v1.PodSpec", "volumes")
-				assertDefinition(t, got, "io.k8s.api.core.v1.Container", "volumeMounts")
-				assertDefinition(t, got, "io.k8s.api.core.v1.PodSpec", "affinity")
-				assertDefinition(t, got, "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta", "annotations")
+				require.NotNil(t, gotSchema)
+				assertSchema(t, *gotSchema, "io.k8s.api.apps.v1.DeploymentSpec", "selector")
+				assertSchema(t, *gotSchema, "io.k8s.api.core.v1.PodSpec", "nodeSelector")
+				assertSchema(t, *gotSchema, "io.k8s.api.core.v1.PodSpec", "tolerations")
+				assertSchema(t, *gotSchema, "io.k8s.api.core.v1.Container", "resources")
+				assertSchema(t, *gotSchema, "io.k8s.api.core.v1.Container", "envFrom")
+				assertSchema(t, *gotSchema, "io.k8s.api.core.v1.Container", "env")
+				assertSchema(t, *gotSchema, "io.k8s.api.core.v1.PodSpec", "volumes")
+				assertSchema(t, *gotSchema, "io.k8s.api.core.v1.Container", "volumeMounts")
+				assertSchema(t, *gotSchema, "io.k8s.api.core.v1.PodSpec", "affinity")
+				assertSchema(t, *gotSchema, "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta", "annotations")
+
+				extraProp, ok := gotSchema.Properties["extra"]
+				assert.True(t, ok)
+				assert.Equal(t, *spec.StringProperty(), extraProp)
+			},
+		},
+		{
+			name: "Duplicate property",
+			extraProperties: spec.SchemaProperties{
+				"selector": *spec.StringProperty(),
+			},
+			assert: func(t *testing.T, gotSchema *spec.Schema, err error) {
+				require.Error(t, err)
+				require.Nil(t, gotSchema)
 			},
 		},
 		{
 			name:          "Invalid",
 			overrideEmbed: []byte(`{`),
-			assert: func(t *testing.T, got spec.Definitions, err error) {
+			assert: func(t *testing.T, gotSchema *spec.Schema, err error) {
 				require.Error(t, err)
-				require.Nil(t, got)
+				require.Nil(t, gotSchema)
 			},
 		},
 	}
@@ -376,8 +402,8 @@ func Test_getDefinitions(t *testing.T) {
 			if tt.overrideEmbed != nil {
 				openapiSpecBytes = tt.overrideEmbed
 			}
-			got, err := getDefinitions(openapiSpecBytes)
-			tt.assert(t, got, err)
+			gotSch, err := getSchema(openapiSpecBytes, tt.extraProperties)
+			tt.assert(t, gotSch, err)
 		})
 	}
 }

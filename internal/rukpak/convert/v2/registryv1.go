@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/go-openapi/spec"
+	"golang.org/x/exp/maps"
 	"helm.sh/helm/v3/pkg/chart"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -651,38 +652,19 @@ func generateName(base string, o interface{}) string {
 }
 
 func newValuesSchemaFile(watchNsConfig watchNamespaceSchemaConfig) ([]byte, error) {
-	valuesSchema := spec.Schema{
-		SchemaProps: spec.SchemaProps{
-			Schema:               "http://json-schema.org/schema#",
-			Type:                 spec.StringOrArray{"object"},
-			Properties:           spec.SchemaProperties{},
-			AdditionalProperties: &spec.SchemaOrBool{Allows: false},
-		},
+	extraProps := spec.SchemaProperties{}
+	if watchNsConfig.IncludeField {
+		extraProps[watchNsConfig.FieldName] = *watchNsConfig.Schema
 	}
-
-	definitions, err := getDefinitions(appsV1OpenAPI)
+	sch, err := getSchema(appsV1OpenAPI, extraProps)
 	if err != nil {
 		return nil, err
-	}
-	valuesSchema.Definitions = definitions
-
-	for _, schemaName := range sets.List(sets.KeySet(definitions)) {
-		for propName := range definitions[schemaName].Properties {
-			valuesSchema.Properties[propName] = *spec.RefProperty(fmt.Sprintf("#/definitions/%s/properties/%s", schemaName, propName))
-		}
-	}
-
-	if watchNsConfig.IncludeField {
-		valuesSchema.Properties[watchNsConfig.FieldName] = *watchNsConfig.Schema
-		if watchNsConfig.Required {
-			valuesSchema.Required = append(valuesSchema.Required, watchNsConfig.FieldName)
-		}
 	}
 
 	var jsonDataBuf bytes.Buffer
 	enc := json.NewEncoder(&jsonDataBuf)
 	enc.SetIndent("", "    ")
-	if err := enc.Encode(valuesSchema); err != nil {
+	if err := enc.Encode(sch); err != nil {
 		return nil, err
 	}
 	return jsonDataBuf.Bytes(), nil
@@ -867,7 +849,7 @@ func mergeMaps[K comparable, V any](maps ...map[K]V) map[K]V {
 //go:embed internal/apis__apps__v1_openapi.json
 var appsV1OpenAPI []byte
 
-func getDefinitions(openAPISpecBytes []byte) (spec.Definitions, error) {
+func getDefinitionsFromOpenAPI(openAPISpecBytes []byte) (spec.Definitions, error) {
 	var docMap map[string]interface{}
 	if err := json.Unmarshal(openAPISpecBytes, &docMap); err != nil {
 		return nil, err
@@ -893,17 +875,41 @@ func getDefinitions(openAPISpecBytes []byte) (spec.Definitions, error) {
 	if err := json.Unmarshal(jsonSchemas, &definitions); err != nil {
 		return nil, err
 	}
+	return definitions, nil
+}
 
+func getSchema(openAPISpecBytes []byte, extraProperties spec.SchemaProperties) (*spec.Schema, error) {
+	definitions, err := getDefinitionsFromOpenAPI(openAPISpecBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Define what we want to find schemas for
 	keep := map[string]sets.Set[string]{
 		"io.k8s.api.apps.v1.DeploymentSpec":               sets.New[string]("selector"),
-		"io.k8s.api.core.v1.PodSpec":                      sets.New[string]("nodeSelector", "tolerations", "selector", "volumes", "affinity"),
+		"io.k8s.api.core.v1.PodSpec":                      sets.New[string]("nodeSelector", "tolerations", "volumes", "affinity"),
 		"io.k8s.api.core.v1.Container":                    sets.New[string]("resources", "envFrom", "env", "volumeMounts"),
 		"io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta": sets.New[string]("annotations"),
 	}
+
+	allKeep := map[string]sets.Set[string]{}
+	maps.Copy(allKeep, keep)
+
+	// Recursively find all references from the roots
+	for defName, properties := range keep {
+		for ref := range findRefs(definitions, defName, properties) {
+			allKeep[ref] = nil
+		}
+	}
+
+	// Remove all properties that are not in the keep set
 	for defName, def := range definitions {
-		keepProps, ok := keep[defName]
+		keepProps, ok := allKeep[defName]
 		if !ok {
 			delete(definitions, defName)
+			continue
+		}
+		if keepProps == nil {
 			continue
 		}
 		for propName := range def.Properties {
@@ -912,6 +918,75 @@ func getDefinitions(openAPISpecBytes []byte) (spec.Definitions, error) {
 			}
 		}
 	}
+	properties := spec.SchemaProperties{}
+	for defName, keepProps := range keep {
+		for propName := range keepProps {
+			properties[propName] = *spec.RefProperty(fmt.Sprintf("#/definitions/%s/properties/%s", defName, propName))
+		}
+	}
+	for propName, prop := range extraProperties {
+		if _, ok := properties[propName]; ok {
+			return nil, fmt.Errorf("extra property %q conflicts with existing property", propName)
+		}
+		properties[propName] = prop
+	}
 
-	return definitions, nil
+	return &spec.Schema{
+		SchemaProps: spec.SchemaProps{
+			Schema:               "http://json-schema.org/schema#",
+			Type:                 spec.StringOrArray{"object"},
+			Properties:           properties,
+			Definitions:          definitions,
+			AdditionalProperties: &spec.SchemaOrBool{Allows: false},
+		},
+	}, nil
+}
+
+func findRefs(definitions spec.Definitions, root string, keepProperties sets.Set[string]) sets.Set[string] {
+	refs := sets.New[string]()
+	definition, ok := definitions[root]
+	if !ok {
+		return refs
+	}
+	for propName, prop := range definition.Properties {
+		if keepProperties == nil || keepProperties.Has(propName) {
+			refs = refs.Union(findRefsInSchema(&prop))
+		}
+	}
+	for ref := range refs {
+		refs = refs.Union(findRefs(definitions, ref, nil))
+	}
+	return refs
+}
+
+func findRefsInSchema(sch *spec.Schema) sets.Set[string] {
+	refs := sets.New[string]()
+	if sch.Ref.String() != "" {
+		refs.Insert(strings.TrimPrefix(sch.Ref.String(), "#/definitions/"))
+	}
+	if sch.Items != nil && sch.Items.Schema != nil {
+		refs = refs.Union(findRefsInSchema(sch.Items.Schema))
+	}
+	if sch.AdditionalProperties != nil && sch.AdditionalProperties.Schema != nil {
+		refs = refs.Union(findRefsInSchema(sch.AdditionalProperties.Schema))
+	}
+	if sch.AdditionalItems != nil && sch.AdditionalItems.Schema != nil {
+		refs = refs.Union(findRefsInSchema(sch.AdditionalItems.Schema))
+	}
+	for _, prop := range sch.Properties {
+		refs = refs.Union(findRefsInSchema(&prop))
+	}
+	for _, item := range sch.AllOf {
+		refs = refs.Union(findRefsInSchema(&item))
+	}
+	for _, item := range sch.AnyOf {
+		refs = refs.Union(findRefsInSchema(&item))
+	}
+	for _, item := range sch.OneOf {
+		refs = refs.Union(findRefsInSchema(&item))
+	}
+	if sch.Not != nil {
+		refs = refs.Union(findRefsInSchema(sch.Not))
+	}
+	return refs
 }
