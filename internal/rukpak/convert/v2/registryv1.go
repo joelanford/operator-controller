@@ -46,17 +46,6 @@ func RegistryV1ToHelmChart(ctx context.Context, rv1FS fs.FS) (*chart.Chart, erro
 		return nil, fmt.Errorf("webhookDefinitions are not supported")
 	}
 
-	convertMaintainers := func(maintainers []v1alpha1.Maintainer) []*chart.Maintainer {
-		var chrtMaintainers []*chart.Maintainer
-		for _, maintainer := range maintainers {
-			chrtMaintainers = append(chrtMaintainers, &chart.Maintainer{
-				Name:  maintainer.Name,
-				Email: maintainer.Email,
-			})
-		}
-		return chrtMaintainers
-	}
-
 	chrt := &chart.Chart{
 		Metadata: &chart.Metadata{
 			APIVersion:  "v2",
@@ -66,6 +55,8 @@ func RegistryV1ToHelmChart(ctx context.Context, rv1FS fs.FS) (*chart.Chart, erro
 			Keywords:    rv1.CSV.Spec.Keywords,
 			Maintainers: convertMaintainers(rv1.CSV.Spec.Maintainers),
 			Annotations: rv1.CSV.Annotations,
+			Sources:     convertSpecLinks(rv1.CSV.Spec.Links),
+			Home:        rv1.CSV.Spec.Provider.URL,
 		},
 	}
 	if rv1.CSV.Spec.MinKubeVersion != "" {
@@ -131,6 +122,25 @@ func RegistryV1ToHelmChart(ctx context.Context, rv1FS fs.FS) (*chart.Chart, erro
 	}
 
 	return chrt, nil
+}
+
+func convertMaintainers(maintainers []v1alpha1.Maintainer) []*chart.Maintainer {
+	var chrtMaintainers []*chart.Maintainer
+	for _, maintainer := range maintainers {
+		chrtMaintainers = append(chrtMaintainers, &chart.Maintainer{
+			Name:  maintainer.Name,
+			Email: maintainer.Email,
+		})
+	}
+	return chrtMaintainers
+}
+
+func convertSpecLinks(links []v1alpha1.AppLink) []string {
+	chrtLinks := make([]string, 0, len(links))
+	for _, link := range links {
+		chrtLinks = append(chrtLinks, link.URL)
+	}
+	return chrtLinks
 }
 
 func newFile(obj client.Object, instructions ...parametrize.Instruction) (*chart.File, error) {
@@ -656,7 +666,7 @@ func newValuesSchemaFile(watchNsConfig watchNamespaceSchemaConfig) ([]byte, erro
 	if watchNsConfig.IncludeField {
 		extraProps[watchNsConfig.FieldName] = *watchNsConfig.Schema
 	}
-	sch, err := getSchema(appsV1OpenAPI, extraProps)
+	sch, err := getSchema(extraProps)
 	if err != nil {
 		return nil, err
 	}
@@ -849,9 +859,9 @@ func mergeMaps[K comparable, V any](maps ...map[K]V) map[K]V {
 //go:embed internal/apis__apps__v1_openapi.json
 var appsV1OpenAPI []byte
 
-func getDefinitionsFromOpenAPI(openAPISpecBytes []byte) (spec.Definitions, error) {
+func getAppsV1DefinitionsFromOpenAPI() (spec.Definitions, error) {
 	var docMap map[string]interface{}
-	if err := json.Unmarshal(openAPISpecBytes, &docMap); err != nil {
+	if err := json.Unmarshal(appsV1OpenAPI, &docMap); err != nil {
 		return nil, err
 	}
 
@@ -878,8 +888,8 @@ func getDefinitionsFromOpenAPI(openAPISpecBytes []byte) (spec.Definitions, error
 	return definitions, nil
 }
 
-func getSchema(openAPISpecBytes []byte, extraProperties spec.SchemaProperties) (*spec.Schema, error) {
-	definitions, err := getDefinitionsFromOpenAPI(openAPISpecBytes)
+func getSchema(extraProperties spec.SchemaProperties) (*spec.Schema, error) {
+	definitions, err := getAppsV1DefinitionsFromOpenAPI()
 	if err != nil {
 		return nil, err
 	}
