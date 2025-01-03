@@ -167,7 +167,7 @@ post-upgrade-checks: $(GINKGO)
 
 ##@ Build
 
-BINARIES=manager
+BINARIES=catalogd
 LINUX_BINARIES=$(join $(addprefix linux/,$(BINARIES)), )
 
 # Build info

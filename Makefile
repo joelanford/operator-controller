@@ -233,17 +233,13 @@ e2e-coverage:
 
 kind-load: $(KIND) #EXHELP Loads the currently constructed images into the KIND cluster.
 	$(CONTAINER_RUNTIME) save $(IMG) | $(KIND) load image-archive /dev/stdin --name $(KIND_CLUSTER_NAME)
-	$(CONTAINER_RUNTIME) save quay.io/operator-framework/catalogd:devel | $(KIND) load image-archive /dev/stdin --name $(KIND_CLUSTER_NAME)
+	IMAGE_REPO=quay.io/operator-framework/catalogd KIND_CLUSTER_NAME=$(KIND_CLUSTER_NAME) $(MAKE) -C catalogd kind-load
 
 .PHONY: kind-deploy
 kind-deploy: export MANIFEST := ./operator-controller.yaml
 kind-deploy: manifests $(KUSTOMIZE) #EXHELP Install controller and dependencies, including catalogd, onto the kind cluster.
-	$(KUSTOMIZE) build $(KUSTOMIZE_BUILD_DIR) > operator-controller.yaml
-	cd catalogd && $(KUSTOMIZE) build config/overlays/cert-manager > catalogd.yaml
-	envsubst '$$CERT_MGR_VERSION,$$INSTALL_DEFAULT_CATALOGS,$$MANIFEST' < scripts/install.tpl.sh > install.sh
-	bash install.sh \
-		--catalogd-manifest=./catalogd/catalogd.yaml \
-		--default-catalogs-manifest=./catalogd/config/base/default/clustercatalogs/default-catalogs.yaml
+	($(KUSTOMIZE) build $(KUSTOMIZE_BUILD_DIR) && echo "---" && $(KUSTOMIZE) build catalogd/config/overlays/cert-manager | sed "s/cert-git-version/cert-$(VERSION)/g") > operator-controller.yaml
+	envsubst '$$INSTALL_DEFAULT_CATALOGS,$$MANIFEST' < scripts/install.tpl.sh | bash -s
 
 .PHONY: kind-cluster
 kind-cluster: $(KIND) #EXHELP Standup a kind cluster.
@@ -276,7 +272,7 @@ export GO_BUILD_FLAGS :=
 export GO_BUILD_LDFLAGS := -s -w \
     -X '$(VERSION_PATH).version=$(VERSION)' \
 
-BINARIES=manager
+BINARIES=operator-controller
 
 $(BINARIES):
 	go build $(GO_BUILD_FLAGS) -tags '$(GO_BUILD_TAGS)' -ldflags '$(GO_BUILD_LDFLAGS)' -gcflags '$(GO_BUILD_GCFLAGS)' -asmflags '$(GO_BUILD_ASMFLAGS)' -o $(BUILDBIN)/$@ ./cmd/$@
@@ -300,25 +296,9 @@ go-build-linux: $(BINARIES)
 run: docker-build kind-cluster kind-load kind-deploy #HELP Build the operator-controller then deploy it into a new kind cluster.
 
 .PHONY: docker-build
-docker-build: build-linux build-catalogd #EXHELP Build docker image for operator-controller with GOOS=linux and local GOARCH.
+docker-build: build-linux #EXHELP Build docker image for operator-controller with GOOS=linux and local GOARCH.
 	$(CONTAINER_RUNTIME) build -t $(IMG) -f Dockerfile ./bin/linux
-
-
-ifeq ($(origin IMAGE_CATALOG_REPO), undefined)
-IMAGE_REPO := quay.io/operator-framework/catalogd
-endif
-export IMAGE_REPO
-
-ifeq ($(origin IMAGE_CATALOG_TAG), undefined)
-IMAGE_TAG := devel
-endif
-export IMAGE_TAG
-
-IMAGE_CATALOG := $(IMAGE_CATALOG_REPO):$(IMAGE_TAG)
-
-.PHONY: build-catalogd
-build-catalogd: ## Build the catalogd project with specified IMAGE_TAG and IMAGE_REPO
-	IMAGE=$(IMAGE_CATALOG) $(MAKE) -C catalogd build-container
+	IMAGE_REPO=quay.io/operator-framework/catalogd $(MAKE) -C catalogd build-container
 
 #SECTION Release
 ifeq ($(origin ENABLE_RELEASE_PIPELINE), undefined)
@@ -333,13 +313,12 @@ export GORELEASER_ARGS
 
 .PHONY: release
 release: $(GORELEASER) #EXHELP Runs goreleaser for the operator-controller. By default, this will run only as a snapshot and will not publish any artifacts unless it is run with different arguments. To override the arguments, run with "GORELEASER_ARGS=...". When run as a github action from a tag, this target will publish a full release.
-	$(GORELEASER) $(GORELEASER_ARGS)
+	OPERATOR_CONTROLLER_IMAGE_REPO=$(IMAGE_REPO) CATALOGD_IMAGE_REPO=quay.io/operator-framework/catalogd $(GORELEASER) $(GORELEASER_ARGS)
 
 .PHONY: quickstart
-quickstart: export MANIFEST := ./operator-controller.yaml
+quickstart: export MANIFEST := https://github.com/operator-framework/operator-controller/releases/download/$(VERSION)/operator-controller.yaml
 quickstart: $(KUSTOMIZE) manifests #EXHELP Generate the installation release manifests and scripts.
-	$(KUSTOMIZE) build $(KUSTOMIZE_BUILD_DIR) | sed "s/:devel/:$(VERSION)/g" > operator-controller.yaml
-	cd catalogd && $(KUSTOMIZE) build config/overlays/cert-manager > catalogd.yaml
+	($(KUSTOMIZE) build $(KUSTOMIZE_BUILD_DIR) && echo "---" && $(KUSTOMIZE) build catalogd/config/overlays/cert-manager | sed "s/cert-git-version/cert-$(VERSION)/g") | sed "s/:devel/:$(VERSION)/g" > operator-controller.yaml
 	envsubst '$$CERT_MGR_VERSION,$$INSTALL_DEFAULT_CATALOGS,$$MANIFEST' < scripts/install.tpl.sh > install.sh
 
 
