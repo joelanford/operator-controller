@@ -5,7 +5,7 @@ FROM gcr.io/distroless/static:nonroot
 
 WORKDIR /
 
-COPY operator-controller manager
+COPY operator-controller operator-controller
 
 EXPOSE 8080
 
