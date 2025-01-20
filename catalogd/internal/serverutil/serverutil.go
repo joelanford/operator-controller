@@ -1,14 +1,18 @@
 package serverutil
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
 	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/klauspost/compress/gzhttp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	catalogdmetrics "github.com/operator-framework/operator-controller/catalogd/internal/metrics"
 	"github.com/operator-framework/operator-controller/catalogd/internal/storage"
@@ -39,12 +43,19 @@ func AddCatalogServerToManager(mgr ctrl.Manager, cfg CatalogServerConfig, tlsFil
 	}
 
 	shutdownTimeout := 30 * time.Second
+	handler := cfg.LocalStorage.StorageServerHandler()
+	handler = gzhttp.GzipHandler(handler)
+	handler = catalogdmetrics.AddMetricsToHandler(handler)
+	handler = newLoggingMiddleware(handler)
 
 	catalogServer := server.Server{
 		Kind: "catalogs",
 		Server: &http.Server{
-			Addr:        cfg.CatalogAddr,
-			Handler:     catalogdmetrics.AddMetricsToHandler(cfg.LocalStorage.StorageServerHandler()),
+			Addr:    cfg.CatalogAddr,
+			Handler: handler,
+			BaseContext: func(_ net.Listener) context.Context {
+				return log.IntoContext(context.Background(), mgr.GetLogger().WithName("http.catalogs"))
+			},
 			ReadTimeout: 5 * time.Second,
 			// TODO: Revert this to 10 seconds if/when the API
 			// evolves to have significantly smaller responses
@@ -60,4 +71,32 @@ func AddCatalogServerToManager(mgr ctrl.Manager, cfg CatalogServerConfig, tlsFil
 	}
 
 	return nil
+}
+
+func newLoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := logr.FromContextOrDiscard(r.Context())
+
+		start := time.Now()
+		lrw := &loggingResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+		next.ServeHTTP(lrw, r)
+
+		logger.WithValues(
+			"method", r.Method,
+			"url", r.URL.String(),
+			"status", lrw.statusCode,
+			"duration", time.Since(start),
+			"remoteAddr", r.RemoteAddr,
+		).Info("HTTP request processed")
+	})
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *loggingResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
 }
