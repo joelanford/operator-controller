@@ -54,6 +54,8 @@ spec:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=:8443"
         - "--leader-elect"
+        - "--feature-gates=RegistryV1WebhookSupport=true"
+        - "--registry-v1-cert-provider=cert-manager"
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager
