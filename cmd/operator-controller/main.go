@@ -69,6 +69,7 @@ import (
 	"github.com/operator-framework/operator-controller/internal/rukpak/source"
 	"github.com/operator-framework/operator-controller/internal/scheme"
 	fsutil "github.com/operator-framework/operator-controller/internal/util/fs"
+	imageutil "github.com/operator-framework/operator-controller/internal/util/image"
 	"github.com/operator-framework/operator-controller/internal/version"
 )
 
@@ -308,20 +309,23 @@ func main() {
 
 	unpacker := &source.ContainersImageRegistry{
 		BaseCachePath: filepath.Join(cachePath, "unpack"),
-		SourceContextFunc: func(logger logr.Logger) (*types.SystemContext, error) {
-			srcContext := &types.SystemContext{
-				DockerCertPath: pullCasDir,
-				OCICertPath:    pullCasDir,
-			}
-			if _, err := os.Stat(authFilePath); err == nil && globalPullSecretKey != nil {
-				logger.Info("using available authentication information for pulling image")
-				srcContext.AuthFilePath = authFilePath
-			} else if os.IsNotExist(err) {
-				logger.Info("no authentication information found for pulling image, proceeding without auth")
-			} else {
-				return nil, fmt.Errorf("could not stat auth file, error: %w", err)
-			}
-			return srcContext, nil
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
+				srcContext := &types.SystemContext{
+					DockerCertPath: pullCasDir,
+					OCICertPath:    pullCasDir,
+				}
+				logger := logr.FromContextOrDiscard(ctx)
+				if _, err := os.Stat(authFilePath); err == nil && globalPullSecretKey != nil {
+					logger.Info("using available authentication information for pulling image")
+					srcContext.AuthFilePath = authFilePath
+				} else if os.IsNotExist(err) {
+					logger.Info("no authentication information found for pulling image, proceeding without auth")
+				} else {
+					return nil, fmt.Errorf("could not stat auth file, error: %w", err)
+				}
+				return srcContext, nil
+			},
 		},
 	}
 

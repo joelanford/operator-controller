@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/containerd/containerd/archive"
 	"github.com/containers/image/v5/pkg/blobinfocache/none"
@@ -77,14 +78,14 @@ func AllFilters(filters ...archive.Filter) archive.Filter {
 // contents will be deleted. If img and imgSrc do not represent the same image, an error will
 // be returned due to a mismatch in the expected layers. Once complete, the dest and its contents
 // are marked as read-only to provide a safeguard against unintended changes.
-func ApplyLayersToDisk(ctx context.Context, dest string, img types.Image, imgSrc types.ImageSource, filter archive.Filter) error {
+func ApplyLayersToDisk(ctx context.Context, dest string, img types.Image, imgSrc types.ImageSource, filter archive.Filter) (time.Time, error) {
 	var applyOpts []archive.ApplyOpt
 	if filter != nil {
 		applyOpts = append(applyOpts, archive.WithFilter(filter))
 	}
 
 	if err := fsutil.EnsureEmptyDirectory(dest, 0700); err != nil {
-		return fmt.Errorf("error ensuring empty unpack directory: %w", err)
+		return time.Time{}, fmt.Errorf("error ensuring empty unpack directory: %w", err)
 	}
 	l := log.FromContext(ctx)
 	l.Info("unpacking image", "path", dest)
@@ -108,11 +109,11 @@ func ApplyLayersToDisk(ctx context.Context, dest string, img types.Image, imgSrc
 			l.Info("applied layer", "layer", i)
 			return nil
 		}(); err != nil {
-			return errors.Join(err, fsutil.DeleteReadOnlyRecursive(dest))
+			return time.Time{}, errors.Join(err, fsutil.DeleteReadOnlyRecursive(dest))
 		}
 	}
 	if err := fsutil.SetReadOnlyRecursive(dest); err != nil {
-		return fmt.Errorf("error making unpack directory read-only: %w", err)
+		return time.Time{}, fmt.Errorf("error making unpack directory read-only: %w", err)
 	}
-	return nil
+	return fsutil.GetDirectoryModTime(dest)
 }

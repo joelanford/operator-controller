@@ -17,10 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/containers/image/v5/types"
-	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -48,6 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -63,6 +63,7 @@ import (
 	"github.com/operator-framework/operator-controller/catalogd/internal/storage"
 	"github.com/operator-framework/operator-controller/catalogd/internal/webhook"
 	fsutil "github.com/operator-framework/operator-controller/internal/util/fs"
+	imageutil "github.com/operator-framework/operator-controller/internal/util/image"
 	"github.com/operator-framework/operator-controller/internal/version"
 )
 
@@ -168,7 +169,8 @@ func main() {
 
 	cw, err := certwatcher.New(certFile, keyFile)
 	if err != nil {
-		log.Fatalf("Failed to initialize certificate watcher: %v", err)
+		setupLog.Error(err, "failed to initialize certificate watcher")
+		os.Exit(1)
 	}
 
 	tlsOpts := func(config *tls.Config) {
@@ -271,20 +273,23 @@ func main() {
 	}
 	unpacker := &source.ContainersImageRegistry{
 		BaseCachePath: unpackCacheBasePath,
-		SourceContextFunc: func(logger logr.Logger) (*types.SystemContext, error) {
-			srcContext := &types.SystemContext{
-				DockerCertPath: pullCasDir,
-				OCICertPath:    pullCasDir,
-			}
-			if _, err := os.Stat(authFilePath); err == nil && globalPullSecretKey != nil {
-				logger.Info("using available authentication information for pulling image")
-				srcContext.AuthFilePath = authFilePath
-			} else if os.IsNotExist(err) {
-				logger.Info("no authentication information found for pulling image, proceeding without auth")
-			} else {
-				return nil, fmt.Errorf("could not stat auth file, error: %w", err)
-			}
-			return srcContext, nil
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
+				logger := log.FromContext(ctx)
+				srcContext := &types.SystemContext{
+					DockerCertPath: pullCasDir,
+					OCICertPath:    pullCasDir,
+				}
+				if _, err := os.Stat(authFilePath); err == nil && globalPullSecretKey != nil {
+					logger.Info("using available authentication information for pulling image")
+					srcContext.AuthFilePath = authFilePath
+				} else if os.IsNotExist(err) {
+					logger.Info("no authentication information found for pulling image, proceeding without auth")
+				} else {
+					return nil, fmt.Errorf("could not stat auth file, error: %w", err)
+				}
+				return srcContext, nil
+			},
 		},
 	}
 

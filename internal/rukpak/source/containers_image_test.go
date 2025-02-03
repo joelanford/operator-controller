@@ -20,10 +20,12 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/operator-framework/operator-controller/internal/rukpak/source"
 	fsutil "github.com/operator-framework/operator-controller/internal/util/fs"
+	imageutil "github.com/operator-framework/operator-controller/internal/util/image"
 )
 
 const (
@@ -36,8 +38,10 @@ func TestUnpackValidInsecure(t *testing.T) {
 	defer cleanup()
 
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath:     t.TempDir(),
-		SourceContextFunc: buildPullContextfunc(t, imageTagRef),
+		BaseCachePath: t.TempDir(),
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
+		},
 	}
 	bundleSource := &source.BundleSource{
 		Name: "test-bundle",
@@ -71,8 +75,10 @@ func TestUnpackValidUsesCache(t *testing.T) {
 	defer cleanup()
 
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath:     t.TempDir(),
-		SourceContextFunc: buildPullContextfunc(t, imageDigestRef),
+		BaseCachePath: t.TempDir(),
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: buildPullContextfunc(t, imageDigestRef),
+		},
 	}
 
 	bundleSource := &source.BundleSource{
@@ -104,8 +110,10 @@ func TestUnpackCacheCheckError(t *testing.T) {
 	defer cleanup()
 
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath:     t.TempDir(),
-		SourceContextFunc: buildPullContextfunc(t, imageTagRef),
+		BaseCachePath: t.TempDir(),
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
+		},
 	}
 	bundleSource := &source.BundleSource{
 		Name: "test-bundle",
@@ -133,8 +141,10 @@ func TestUnpackNameOnlyImageReference(t *testing.T) {
 	defer cleanup()
 
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath:     t.TempDir(),
-		SourceContextFunc: buildPullContextfunc(t, imageTagRef),
+		BaseCachePath: t.TempDir(),
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
+		},
 	}
 	bundleSource := &source.BundleSource{
 		Name: "test-bundle",
@@ -155,8 +165,10 @@ func TestUnpackUnservedTaggedImageReference(t *testing.T) {
 	defer cleanup()
 
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath:     t.TempDir(),
-		SourceContextFunc: buildPullContextfunc(t, imageTagRef),
+		BaseCachePath: t.TempDir(),
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
+		},
 	}
 	bundleSource := &source.BundleSource{
 		Name: "test-bundle",
@@ -173,12 +185,14 @@ func TestUnpackUnservedTaggedImageReference(t *testing.T) {
 }
 
 func TestUnpackUnservedCanonicalImageReference(t *testing.T) {
-	imageTagRef, imageDigestRef, cleanup := setupRegistry(t)
+	_, imageDigestRef, cleanup := setupRegistry(t)
 	defer cleanup()
 
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath:     t.TempDir(),
-		SourceContextFunc: buildPullContextfunc(t, imageTagRef),
+		BaseCachePath: t.TempDir(),
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: buildPullContextfunc(t, imageDigestRef),
+		},
 	}
 
 	origRef := imageDigestRef.String()
@@ -235,8 +249,10 @@ func TestUnpackInvalidNilImage(t *testing.T) {
 
 func TestUnpackInvalidImageRef(t *testing.T) {
 	unpacker := &source.ContainersImageRegistry{
-		SourceContextFunc: func(logr.Logger) (*types.SystemContext, error) {
-			return &types.SystemContext{}, nil
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: func(context.Context) (*types.SystemContext, error) {
+				return &types.SystemContext{}, nil
+			},
 		},
 	}
 	// Create BundleSource with malformed image reference
@@ -261,8 +277,10 @@ func TestUnpackUnexpectedFile(t *testing.T) {
 	defer cleanup()
 
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath:     t.TempDir(),
-		SourceContextFunc: buildPullContextfunc(t, imageTagRef),
+		BaseCachePath: t.TempDir(),
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
+		},
 	}
 	bundleSource := &source.BundleSource{
 		Name: "test-bundle",
@@ -277,6 +295,7 @@ func TestUnpackUnexpectedFile(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Dir(unpackPath), 0700))
 	require.NoError(t, os.WriteFile(unpackPath, []byte{}, 0600))
 
+	log.SetLogger(logr.Discard())
 	// Attempt to pull and unpack the image
 	_, err := unpacker.Unpack(context.Background(), bundleSource)
 	require.NoError(t, err)
@@ -295,8 +314,10 @@ func TestUnpackCopySucceedsMountFails(t *testing.T) {
 	defer cleanup()
 
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath:     t.TempDir(),
-		SourceContextFunc: buildPullContextfunc(t, imageTagRef),
+		BaseCachePath: t.TempDir(),
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
+		},
 	}
 	bundleSource := &source.BundleSource{
 		Name: "test-bundle",
@@ -320,8 +341,10 @@ func TestCleanup(t *testing.T) {
 	defer cleanup()
 
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath:     t.TempDir(),
-		SourceContextFunc: buildPullContextfunc(t, imageTagRef),
+		BaseCachePath: t.TempDir(),
+		Puller: &imageutil.ContainersImagePuller{
+			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
+		},
 	}
 	bundleSource := &source.BundleSource{
 		Name: "test-bundle",
@@ -375,8 +398,8 @@ func newReference(host, repo, tag string) (reference.NamedTagged, error) {
 	return reference.WithTag(ref, tag)
 }
 
-func buildPullContextfunc(t *testing.T, ref reference.Named) func(_ logr.Logger) (*types.SystemContext, error) {
-	return func(_ logr.Logger) (*types.SystemContext, error) {
+func buildPullContextfunc(t *testing.T, ref reference.Named) func(context.Context) (*types.SystemContext, error) {
+	return func(ctx context.Context) (*types.SystemContext, error) {
 		// Build a containers/image context that allows pulling from the test registry insecurely
 		registriesConf := sysregistriesv2.V2RegistriesConf{Registries: []sysregistriesv2.Registry{
 			{
