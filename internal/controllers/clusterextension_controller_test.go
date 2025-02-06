@@ -34,7 +34,6 @@ import (
 	"github.com/operator-framework/operator-controller/internal/finalizers"
 	"github.com/operator-framework/operator-controller/internal/labels"
 	"github.com/operator-framework/operator-controller/internal/resolve"
-	"github.com/operator-framework/operator-controller/internal/rukpak/source"
 )
 
 // Describe: ClusterExtension Controller Test
@@ -118,7 +117,7 @@ func TestClusterExtensionResolutionSuccessfulUnpackFails(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cl, reconciler := newClientAndReconciler(t)
-			reconciler.Unpacker = &MockUnpacker{
+			reconciler.ImagePuller = &MockImagePuller{
 				err: tc.unpackErr,
 			}
 
@@ -196,70 +195,10 @@ func TestClusterExtensionResolutionSuccessfulUnpackFails(t *testing.T) {
 	}
 }
 
-func TestClusterExtensionUnpackUnexpectedState(t *testing.T) {
-	cl, reconciler := newClientAndReconciler(t)
-	reconciler.Unpacker = &MockUnpacker{
-		result: &source.Result{
-			State: "unexpected",
-		},
-	}
-
-	ctx := context.Background()
-	extKey := types.NamespacedName{Name: fmt.Sprintf("cluster-extension-test-%s", rand.String(8))}
-
-	t.Log("When the cluster extension specifies a channel with version that exist")
-	t.Log("By initializing cluster state")
-	pkgName := "prometheus"
-	pkgVer := "1.0.0"
-	pkgChan := "beta"
-	namespace := fmt.Sprintf("test-ns-%s", rand.String(8))
-	serviceAccount := fmt.Sprintf("test-sa-%s", rand.String(8))
-
-	clusterExtension := &ocv1.ClusterExtension{
-		ObjectMeta: metav1.ObjectMeta{Name: extKey.Name},
-		Spec: ocv1.ClusterExtensionSpec{
-			Source: ocv1.SourceConfig{
-				SourceType: "Catalog",
-				Catalog: &ocv1.CatalogSource{
-					PackageName: pkgName,
-					Version:     pkgVer,
-					Channels:    []string{pkgChan},
-				},
-			},
-			Namespace: namespace,
-			ServiceAccount: ocv1.ServiceAccountReference{
-				Name: serviceAccount,
-			},
-		},
-	}
-	err := cl.Create(ctx, clusterExtension)
-	require.NoError(t, err)
-
-	t.Log("It sets resolution success status")
-	t.Log("By running reconcile")
-	reconciler.Resolver = resolve.Func(func(_ context.Context, _ *ocv1.ClusterExtension, _ *ocv1.BundleMetadata) (*declcfg.Bundle, *bsemver.Version, *declcfg.Deprecation, error) {
-		v := bsemver.MustParse("1.0.0")
-		return &declcfg.Bundle{
-			Name:    "prometheus.v1.0.0",
-			Package: "prometheus",
-			Image:   "quay.io/operatorhubio/prometheus@fake1.0.0",
-		}, &v, nil, nil
-	})
-
-	require.Panics(t, func() {
-		_, _ = reconciler.Reconcile(ctx, ctrl.Request{NamespacedName: extKey})
-	}, "reconciliation should panic on unknown unpack state")
-
-	require.NoError(t, cl.DeleteAllOf(ctx, &ocv1.ClusterExtension{}))
-}
-
 func TestClusterExtensionResolutionAndUnpackSuccessfulApplierFails(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.Unpacker = &MockUnpacker{
-		result: &source.Result{
-			State:  source.StateUnpacked,
-			Bundle: fstest.MapFS{},
-		},
+	reconciler.ImagePuller = &MockImagePuller{
+		fsys: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
@@ -389,11 +328,8 @@ func TestClusterExtensionServiceAccountNotFound(t *testing.T) {
 
 func TestClusterExtensionApplierFailsWithBundleInstalled(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.Unpacker = &MockUnpacker{
-		result: &source.Result{
-			State:  source.StateUnpacked,
-			Bundle: fstest.MapFS{},
-		},
+	reconciler.ImagePuller = &MockImagePuller{
+		fsys: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
@@ -488,11 +424,8 @@ func TestClusterExtensionApplierFailsWithBundleInstalled(t *testing.T) {
 
 func TestClusterExtensionManagerFailed(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.Unpacker = &MockUnpacker{
-		result: &source.Result{
-			State:  source.StateUnpacked,
-			Bundle: fstest.MapFS{},
-		},
+	reconciler.ImagePuller = &MockImagePuller{
+		fsys: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
@@ -569,11 +502,8 @@ func TestClusterExtensionManagerFailed(t *testing.T) {
 
 func TestClusterExtensionManagedContentCacheWatchFail(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.Unpacker = &MockUnpacker{
-		result: &source.Result{
-			State:  source.StateUnpacked,
-			Bundle: fstest.MapFS{},
-		},
+	reconciler.ImagePuller = &MockImagePuller{
+		fsys: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
@@ -653,11 +583,8 @@ func TestClusterExtensionManagedContentCacheWatchFail(t *testing.T) {
 
 func TestClusterExtensionInstallationSucceeds(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.Unpacker = &MockUnpacker{
-		result: &source.Result{
-			State:  source.StateUnpacked,
-			Bundle: fstest.MapFS{},
-		},
+	reconciler.ImagePuller = &MockImagePuller{
+		fsys: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
@@ -734,11 +661,8 @@ func TestClusterExtensionInstallationSucceeds(t *testing.T) {
 
 func TestClusterExtensionDeleteFinalizerFails(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.Unpacker = &MockUnpacker{
-		result: &source.Result{
-			State:  source.StateUnpacked,
-			Bundle: fstest.MapFS{},
-		},
+	reconciler.ImagePuller = &MockImagePuller{
+		fsys: fstest.MapFS{},
 	}
 
 	ctx := context.Background()

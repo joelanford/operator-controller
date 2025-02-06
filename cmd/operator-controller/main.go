@@ -66,7 +66,6 @@ import (
 	"github.com/operator-framework/operator-controller/internal/httputil"
 	"github.com/operator-framework/operator-controller/internal/resolve"
 	"github.com/operator-framework/operator-controller/internal/rukpak/preflights/crdupgradesafety"
-	"github.com/operator-framework/operator-controller/internal/rukpak/source"
 	"github.com/operator-framework/operator-controller/internal/scheme"
 	fsutil "github.com/operator-framework/operator-controller/internal/util/fs"
 	imageutil "github.com/operator-framework/operator-controller/internal/util/image"
@@ -307,31 +306,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker := &source.ContainersImageRegistry{
-		Cache: source.BundleCache(filepath.Join(cachePath, "unpack")),
-		Puller: &imageutil.ContainersImagePuller{
-			SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
-				srcContext := &types.SystemContext{
-					DockerCertPath: pullCasDir,
-					OCICertPath:    pullCasDir,
-				}
-				logger := logr.FromContextOrDiscard(ctx)
-				if _, err := os.Stat(authFilePath); err == nil && globalPullSecretKey != nil {
-					logger.Info("using available authentication information for pulling image")
-					srcContext.AuthFilePath = authFilePath
-				} else if os.IsNotExist(err) {
-					logger.Info("no authentication information found for pulling image, proceeding without auth")
-				} else {
-					return nil, fmt.Errorf("could not stat auth file, error: %w", err)
-				}
-				return srcContext, nil
-			},
+	imageCache := imageutil.BundleCache(filepath.Join(cachePath, "unpack"))
+	imagePuller := &imageutil.ContainersImagePuller{
+		SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
+			srcContext := &types.SystemContext{
+				DockerCertPath: pullCasDir,
+				OCICertPath:    pullCasDir,
+			}
+			logger := logr.FromContextOrDiscard(ctx)
+			if _, err := os.Stat(authFilePath); err == nil && globalPullSecretKey != nil {
+				logger.Info("using available authentication information for pulling image")
+				srcContext.AuthFilePath = authFilePath
+			} else if os.IsNotExist(err) {
+				logger.Info("no authentication information found for pulling image, proceeding without auth")
+			} else {
+				return nil, fmt.Errorf("could not stat auth file, error: %w", err)
+			}
+			return srcContext, nil
 		},
 	}
 
 	clusterExtensionFinalizers := crfinalizer.NewFinalizers()
 	if err := clusterExtensionFinalizers.Register(controllers.ClusterExtensionCleanupUnpackCacheFinalizer, finalizers.FinalizerFunc(func(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
-		return crfinalizer.Result{}, unpacker.Cleanup(ctx, obj.GetName())
+		return crfinalizer.Result{}, imageCache.DeleteID(ctx, obj.GetName())
 	})); err != nil {
 		setupLog.Error(err, "unable to register finalizer", "finalizerKey", controllers.ClusterExtensionCleanupUnpackCacheFinalizer)
 		os.Exit(1)
@@ -394,7 +391,8 @@ func main() {
 	if err = (&controllers.ClusterExtensionReconciler{
 		Client:                cl,
 		Resolver:              resolver,
-		Unpacker:              unpacker,
+		ImageCache:            imageCache,
+		ImagePuller:           imagePuller,
 		Applier:               helmApplier,
 		InstalledBundleGetter: &controllers.DefaultInstalledBundleGetter{ActionClientGetter: acg},
 		Finalizers:            clusterExtensionFinalizers,

@@ -56,7 +56,7 @@ import (
 	"github.com/operator-framework/operator-controller/internal/contentmanager"
 	"github.com/operator-framework/operator-controller/internal/labels"
 	"github.com/operator-framework/operator-controller/internal/resolve"
-	rukpaksource "github.com/operator-framework/operator-controller/internal/rukpak/source"
+	imageutil "github.com/operator-framework/operator-controller/internal/util/image"
 )
 
 const (
@@ -67,8 +67,11 @@ const (
 // ClusterExtensionReconciler reconciles a ClusterExtension object
 type ClusterExtensionReconciler struct {
 	client.Client
-	Resolver              resolve.Resolver
-	Unpacker              rukpaksource.Unpacker
+	Resolver resolve.Resolver
+
+	ImageCache  imageutil.Cache
+	ImagePuller imageutil.Puller
+
 	Applier               Applier
 	Manager               contentmanager.Manager
 	controller            crcontroller.Controller
@@ -252,7 +255,7 @@ func (r *ClusterExtensionReconciler) reconcile(ctx context.Context, ext *ocv1.Cl
 	resolvedBundleMetadata := bundleutil.MetadataFor(resolvedBundle.Name, *resolvedBundleVersion)
 
 	l.Info("unpacking resolved bundle")
-	unpackResult, err := r.Unpacker.Unpack(ctx, ext.GetName(), resolvedBundle.Image)
+	imageFS, _, _, err := r.ImagePuller.Pull(ctx, ext.GetName(), resolvedBundle.Image, r.ImageCache)
 	if err != nil {
 		// Wrap the error passed to this with the resolution information until we have successfully
 		// installed since we intend for the progressing condition to replace the resolved condition
@@ -260,10 +263,6 @@ func (r *ClusterExtensionReconciler) reconcile(ctx context.Context, ext *ocv1.Cl
 		setStatusProgressing(ext, wrapErrorWithResolutionInfo(resolvedBundleMetadata, err))
 		setInstalledStatusFromBundle(ext, installedBundle)
 		return ctrl.Result{}, err
-	}
-
-	if unpackResult.State != rukpaksource.StateUnpacked {
-		panic(fmt.Sprintf("unexpected unpack state %q", unpackResult.State))
 	}
 
 	objLbls := map[string]string{
@@ -288,7 +287,7 @@ func (r *ClusterExtensionReconciler) reconcile(ctx context.Context, ext *ocv1.Cl
 	// to ensure exponential backoff can occur:
 	//   - Permission errors (it is not possible to watch changes to permissions.
 	//     The only way to eventually recover from permission errors is to keep retrying).
-	managedObjs, _, err := r.Applier.Apply(ctx, unpackResult.Bundle, ext, objLbls, storeLbls)
+	managedObjs, _, err := r.Applier.Apply(ctx, imageFS, ext, objLbls, storeLbls)
 	if err != nil {
 		setStatusProgressing(ext, wrapErrorWithResolutionInfo(resolvedBundleMetadata, err))
 		// Now that we're actually trying to install, use the error

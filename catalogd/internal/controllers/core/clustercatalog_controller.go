@@ -227,7 +227,16 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *catal
 		return nextPollResult(storedCatalog.unpackResult.LastSuccessfulPollAttempt.Time, catalog), nil
 	}
 
-	unpackResult, err := r.Unpacker.Unpack(ctx, catalog)
+	if catalog.Spec.Source.Type != catalogdv1.SourceTypeImage {
+		panic(fmt.Sprintf("programmer error: source type %q is unable to handle specified catalog source type %q", catalogdv1.SourceTypeImage, catalog.Spec.Source.Type))
+	}
+	if catalog.Spec.Source.Image == nil {
+		unpackErr := reconcile.TerminalError(fmt.Errorf("error parsing catalog, catalog %s has a nil image source", catalog.Name))
+		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), unpackErr)
+		return ctrl.Result{}, unpackErr
+	}
+
+	unpackResult, err := r.Unpacker.Unpack(ctx, catalog.Name, catalog.Spec.Source.Image.Ref)
 	if err != nil {
 		unpackErr := fmt.Errorf("source catalog content: %w", err)
 		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), unpackErr)
@@ -434,7 +443,7 @@ func (r *ClusterCatalogReconciler) deleteCatalogCache(ctx context.Context, catal
 		return err
 	}
 	updateStatusNotServing(&catalog.Status, catalog.GetGeneration())
-	if err := r.Unpacker.Cleanup(ctx, catalog); err != nil {
+	if err := r.Unpacker.Cleanup(ctx, catalog.Name); err != nil {
 		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
 		return err
 	}

@@ -273,7 +273,7 @@ func main() {
 	}
 
 	unpacker := &source.ContainersImageRegistry{
-		Cache: source.CatalogCache(unpackCacheBasePath),
+		Cache: imageutil.CatalogCache(unpackCacheBasePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
 				logger := log.FromContext(ctx)

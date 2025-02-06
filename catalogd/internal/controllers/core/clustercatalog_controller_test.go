@@ -39,7 +39,7 @@ type MockSource struct {
 	cleanupError error
 }
 
-func (ms *MockSource) Unpack(_ context.Context, _ *catalogdv1.ClusterCatalog) (*source.Result, error) {
+func (ms *MockSource) Unpack(_ context.Context, _, _ string) (*source.Result, error) {
 	if ms.unpackError != nil {
 		return nil, ms.unpackError
 	}
@@ -47,7 +47,7 @@ func (ms *MockSource) Unpack(_ context.Context, _ *catalogdv1.ClusterCatalog) (*
 	return ms.result, nil
 }
 
-func (ms *MockSource) Cleanup(_ context.Context, _ *catalogdv1.ClusterCatalog) error {
+func (ms *MockSource) Cleanup(_ context.Context, _ string) error {
 	return ms.cleanupError
 }
 

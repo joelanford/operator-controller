@@ -31,8 +31,8 @@ import (
 // specifications. A source should treat a catalog root directory as an opaque
 // file tree and delegate catalog format concerns to catalog parsers.
 type Unpacker interface {
-	Unpack(context.Context, *catalogdv1.ClusterCatalog) (*Result, error)
-	Cleanup(context.Context, *catalogdv1.ClusterCatalog) error
+	Unpack(context.Context, string, string) (*Result, error)
+	Cleanup(context.Context, string) error
 }
 
 // Result conveys progress information about unpacking catalog content.

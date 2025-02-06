@@ -49,23 +49,6 @@ func TestImageRegistry(t *testing.T) {
 		refType string
 	}{
 		{
-			name: ".spec.source.image is nil",
-			catalog: &catalogdv1.ClusterCatalog{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-				},
-				Spec: catalogdv1.ClusterCatalogSpec{
-					Source: catalogdv1.CatalogSource{
-						Type:  catalogdv1.SourceTypeImage,
-						Image: nil,
-					},
-				},
-			},
-			wantErr:  true,
-			terminal: true,
-			refType:  "tag",
-		},
-		{
 			name: ".spec.source.image.ref is unparsable",
 			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
@@ -230,7 +213,7 @@ func TestImageRegistry(t *testing.T) {
 				}
 				img, err = mutate.Config(img, v1.Config{
 					Labels: map[string]string{
-						source.ConfigDirLabel: "/configs",
+						imageutil.ConfigDirLabel: "/configs",
 					},
 				})
 				if err != nil {
@@ -263,7 +246,7 @@ func TestImageRegistry(t *testing.T) {
 				}
 				img, err = mutate.Config(img, v1.Config{
 					Labels: map[string]string{
-						source.ConfigDirLabel: "/configs",
+						imageutil.ConfigDirLabel: "/configs",
 					},
 				})
 				if err != nil {
@@ -296,7 +279,7 @@ func TestImageRegistry(t *testing.T) {
 				}
 				img, err = mutate.Config(img, v1.Config{
 					Labels: map[string]string{
-						source.ConfigDirLabel: "/configs",
+						imageutil.ConfigDirLabel: "/configs",
 					},
 				})
 				if err != nil {
@@ -313,7 +296,7 @@ func TestImageRegistry(t *testing.T) {
 			t.Cleanup(cancel)
 			testCache := t.TempDir()
 			imgReg := &source.ContainersImageRegistry{
-				Cache: source.CatalogCache(testCache),
+				Cache: imageutil.CatalogCache(testCache),
 				Puller: &imageutil.ContainersImagePuller{
 					SourceCtxFunc: func(context.Context) (*types.SystemContext, error) {
 						return &types.SystemContext{
@@ -384,7 +367,7 @@ func TestImageRegistry(t *testing.T) {
 				tt.catalog.Spec.Source.Image.Ref = imgName.Name()
 			}
 
-			rs, err := imgReg.Unpack(ctx, tt.catalog)
+			rs, err := imgReg.Unpack(ctx, tt.catalog.Name, tt.catalog.Spec.Source.Image.Ref)
 			if !tt.wantErr {
 				require.NoError(t, err)
 				assert.Equal(t, fmt.Sprintf("%s@sha256:%s", imgName.Context().Name(), digest.Hex), rs.ResolvedSource.Image.Ref)
@@ -417,8 +400,8 @@ func TestImageRegistry(t *testing.T) {
 				assert.Equal(t, tt.terminal, isTerminal, "expected terminal %v, got %v", tt.terminal, isTerminal)
 			}
 
-			assert.NoError(t, imgReg.Cleanup(ctx, tt.catalog))
-			assert.NoError(t, imgReg.Cleanup(ctx, tt.catalog), "cleanup should ignore missing files")
+			assert.NoError(t, imgReg.Cleanup(ctx, tt.catalog.Name))
+			assert.NoError(t, imgReg.Cleanup(ctx, tt.catalog.Name), "cleanup should ignore missing files")
 		})
 	}
 }
@@ -435,7 +418,7 @@ func TestImageRegistryMissingLabelConsistentFailure(t *testing.T) {
 	t.Cleanup(cancel)
 	testCache := t.TempDir()
 	imgReg := &source.ContainersImageRegistry{
-		Cache: &imageutil.DiskCache{BasePath: testCache},
+		Cache: imageutil.CatalogCache(testCache),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: func(context.Context) (*types.SystemContext, error) {
 				return &types.SystemContext{}, nil
@@ -475,7 +458,7 @@ func TestImageRegistryMissingLabelConsistentFailure(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		_, err = imgReg.Unpack(ctx, catalog)
+		_, err = imgReg.Unpack(ctx, catalog.Name, catalog.Spec.Source.Image.Ref)
 		require.Error(t, err, "unpack run ", i)
 	}
 }
