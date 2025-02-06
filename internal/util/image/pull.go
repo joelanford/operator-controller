@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"time"
 
@@ -22,12 +23,14 @@ import (
 )
 
 type Puller interface {
-	Pull(context.Context, string, Applier) (reference.Canonical, time.Time, error)
+	Pull(context.Context, string, string, Cache) (fs.FS, reference.Canonical, time.Time, error)
 }
 
-type Applier interface {
-	Exists(context.Context, reference.Canonical) (bool, time.Time, error)
-	Apply(context.Context, reference.Named, reference.Canonical, types.Image, types.ImageSource) (time.Time, error)
+type Cache interface {
+	Fetch(context.Context, string, reference.Canonical) (fs.FS, time.Time, error)
+	Store(context.Context, string, reference.Named, reference.Canonical, types.Image, types.ImageSource) (fs.FS, time.Time, error)
+	DeleteID(context.Context, string) error
+	GarbageCollect(context.Context, string, reference.Canonical) error
 }
 
 var insecurePolicy = []byte(`{"default":[{"type":"insecureAcceptAnything"}]}`)
@@ -36,24 +39,24 @@ type ContainersImagePuller struct {
 	SourceCtxFunc func(context.Context) (*types.SystemContext, error)
 }
 
-func (p *ContainersImagePuller) Pull(ctx context.Context, ref string, applier Applier) (reference.Canonical, time.Time, error) {
+func (p *ContainersImagePuller) Pull(ctx context.Context, id string, ref string, cache Cache) (fs.FS, reference.Canonical, time.Time, error) {
 	// Reload registries cache in case of configuration update
 	sysregistriesv2.InvalidateCache()
 
 	dockerRef, err := reference.ParseNamed(ref)
 	if err != nil {
-		return nil, time.Time{}, reconcile.TerminalError(fmt.Errorf("error parsing image reference %q: %w", ref, err))
+		return nil, nil, time.Time{}, reconcile.TerminalError(fmt.Errorf("error parsing image reference %q: %w", ref, err))
 	}
 	dockerImgRef, err := docker.NewReference(dockerRef)
 	if err != nil {
-		return nil, time.Time{}, reconcile.TerminalError(fmt.Errorf("error creating reference: %w", err))
+		return nil, nil, time.Time{}, reconcile.TerminalError(fmt.Errorf("error creating reference: %w", err))
 	}
 
 	l := log.FromContext(ctx, "ref", dockerRef.String())
 
 	srcCtx, err := p.SourceCtxFunc(ctx)
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, nil, time.Time{}, err
 	}
 
 	//////////////////////////////////////////////////////
@@ -63,22 +66,22 @@ func (p *ContainersImagePuller) Pull(ctx context.Context, ref string, applier Ap
 	//////////////////////////////////////////////////////
 	canonicalRef, err := resolveCanonicalRef(ctx, dockerImgRef, srcCtx)
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, nil, time.Time{}, err
 	}
 	l = l.WithValues("digest", canonicalRef.Digest().String())
 
 	///////////////////////////////////////////////////////
 	//
-	// Check if the applier has already applied the
+	// Check if the cache has already applied the
 	// canonical ref. If so, we're done.
 	//
 	///////////////////////////////////////////////////////
-	alreadyExists, modTime, err := applier.Exists(ctx, canonicalRef)
+	fsys, modTime, err := cache.Fetch(ctx, id, canonicalRef)
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("error checking if ref has already been applied: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("error checking if ref has already been applied: %w", err)
 	}
-	if alreadyExists {
-		return canonicalRef, modTime, nil
+	if fsys != nil {
+		return fsys, canonicalRef, modTime, nil
 	}
 
 	//////////////////////////////////////////////////////
@@ -93,7 +96,7 @@ func (p *ContainersImagePuller) Pull(ctx context.Context, ref string, applier Ap
 	//////////////////////////////////////////////////////
 	layoutDir, err := os.MkdirTemp("", "oci-layout-*")
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("error creating temporary directory: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("error creating temporary directory: %w", err)
 	}
 	defer func() {
 		if err := os.RemoveAll(layoutDir); err != nil {
@@ -103,7 +106,7 @@ func (p *ContainersImagePuller) Pull(ctx context.Context, ref string, applier Ap
 
 	layoutImgRef, err := layout.NewReference(layoutDir, canonicalRef.String())
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("error creating reference: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("error creating reference: %w", err)
 	}
 
 	//////////////////////////////////////////////////////
@@ -114,7 +117,7 @@ func (p *ContainersImagePuller) Pull(ctx context.Context, ref string, applier Ap
 	//////////////////////////////////////////////////////
 	policyContext, err := loadPolicyContext(srcCtx, l)
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("error loading policy context: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("error loading policy context: %w", err)
 	}
 	defer func() {
 		if err := policyContext.Destroy(); err != nil {
@@ -136,15 +139,24 @@ func (p *ContainersImagePuller) Pull(ctx context.Context, ref string, applier Ap
 		// accordingly to a provided policy context.
 		RemoveSignatures: true,
 	}); err != nil {
-		return nil, time.Time{}, fmt.Errorf("error copying image: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("error copying image: %w", err)
 	}
 	l.Info("pulled image")
 
-	modTime, err = p.applyImage(ctx, dockerRef, canonicalRef, layoutImgRef, applier, srcCtx)
+	fsys, modTime, err = p.applyImage(ctx, id, dockerRef, canonicalRef, layoutImgRef, cache, srcCtx)
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("error applying image: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("error applying image: %w", err)
 	}
-	return canonicalRef, modTime, nil
+
+	/////////////////////////////////////////////////////////////
+	//
+	// Clean up any images from the cache that we no longer need.
+	//
+	/////////////////////////////////////////////////////////////
+	if err := cache.GarbageCollect(ctx, id, canonicalRef); err != nil {
+		return nil, nil, time.Time{}, fmt.Errorf("error deleting old images: %w", err)
+	}
+	return fsys, canonicalRef, modTime, nil
 }
 
 func resolveCanonicalRef(ctx context.Context, imgRef types.ImageReference, srcCtx *types.SystemContext) (reference.Canonical, error) {
@@ -173,14 +185,14 @@ func resolveCanonicalRef(ctx context.Context, imgRef types.ImageReference, srcCt
 	return canonicalRef, nil
 }
 
-func (p *ContainersImagePuller) applyImage(ctx context.Context, srcRef reference.Named, canonicalRef reference.Canonical, srcImgRef types.ImageReference, applier Applier, sourceContext *types.SystemContext) (time.Time, error) {
+func (p *ContainersImagePuller) applyImage(ctx context.Context, id string, srcRef reference.Named, canonicalRef reference.Canonical, srcImgRef types.ImageReference, applier Cache, sourceContext *types.SystemContext) (fs.FS, time.Time, error) {
 	imgSrc, err := srcImgRef.NewImageSource(ctx, sourceContext)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("error creating image source: %w", err)
+		return nil, time.Time{}, fmt.Errorf("error creating image source: %w", err)
 	}
 	img, err := image.FromSource(ctx, sourceContext, imgSrc)
 	if err != nil {
-		return time.Time{}, errors.Join(
+		return nil, time.Time{}, errors.Join(
 			imgSrc.Close(),
 			fmt.Errorf("error reading image: %w", err),
 		)
@@ -190,7 +202,7 @@ func (p *ContainersImagePuller) applyImage(ctx context.Context, srcRef reference
 			panic(err)
 		}
 	}()
-	return applier.Apply(ctx, srcRef, canonicalRef, img, imgSrc)
+	return applier.Store(ctx, id, srcRef, canonicalRef, img, imgSrc)
 }
 
 func loadPolicyContext(sourceContext *types.SystemContext, l logr.Logger) (*signature.PolicyContext, error) {

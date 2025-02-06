@@ -49,14 +49,14 @@ type MockUnpacker struct {
 }
 
 // Unpack mocks the Unpack method
-func (m *MockUnpacker) Unpack(_ context.Context, _ *source.BundleSource) (*source.Result, error) {
+func (m *MockUnpacker) Unpack(_ context.Context, _, _ string) (*source.Result, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
 	return m.result, nil
 }
 
-func (m *MockUnpacker) Cleanup(_ context.Context, _ *source.BundleSource) error {
+func (m *MockUnpacker) Cleanup(_ context.Context, _ string) error {
 	// TODO implement me
 	panic("implement me")
 }

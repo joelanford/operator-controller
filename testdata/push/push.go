@@ -64,7 +64,7 @@ func buildBundles(path string) (map[string]v1.Image, error) {
 		return nil, err
 	}
 	mutatedMap := make(map[string]v1.Image, 0)
-	// Apply required bundle labels
+	// Store required bundle labels
 	for key, img := range bundles {
 		// Replace ':' between image name and image tag for file path
 		metadataPath := strings.Replace(key, ":", "/", 1)
@@ -103,7 +103,7 @@ func buildCatalogs(path string) (map[string]v1.Image, error) {
 		return nil, err
 	}
 	mutatedMap := make(map[string]v1.Image, 0)
-	// Apply required catalog label
+	// Store required catalog label
 	for key, img := range catalogs {
 		cfg := v1.Config{
 			Labels: map[string]string{

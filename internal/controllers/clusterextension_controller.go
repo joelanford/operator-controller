@@ -185,7 +185,7 @@ func checkForUnexpectedFieldChange(a, b ocv1.ClusterExtension) bool {
 4. Install: The process of installing involves:
 4.1 Converting the CSV in the bundle into a set of plain k8s objects.
 4.2 Generating a chart from k8s objects.
-4.3 Apply the release on cluster.
+4.3 Store the release on cluster.
 */
 //nolint:unparam
 func (r *ClusterExtensionReconciler) reconcile(ctx context.Context, ext *ocv1.ClusterExtension) (ctrl.Result, error) {
@@ -250,16 +250,9 @@ func (r *ClusterExtensionReconciler) reconcile(ctx context.Context, ext *ocv1.Cl
 	SetDeprecationStatus(ext, resolvedBundle.Name, resolvedDeprecation)
 
 	resolvedBundleMetadata := bundleutil.MetadataFor(resolvedBundle.Name, *resolvedBundleVersion)
-	bundleSource := &rukpaksource.BundleSource{
-		Name: ext.GetName(),
-		Type: rukpaksource.SourceTypeImage,
-		Image: &rukpaksource.ImageSource{
-			Ref: resolvedBundle.Image,
-		},
-	}
 
 	l.Info("unpacking resolved bundle")
-	unpackResult, err := r.Unpacker.Unpack(ctx, bundleSource)
+	unpackResult, err := r.Unpacker.Unpack(ctx, ext.GetName(), resolvedBundle.Image)
 	if err != nil {
 		// Wrap the error passed to this with the resolution information until we have successfully
 		// installed since we intend for the progressing condition to replace the resolved condition

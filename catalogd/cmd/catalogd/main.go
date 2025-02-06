@@ -271,8 +271,9 @@ func main() {
 		setupLog.Error(err, "unable to create cache directory for unpacking")
 		os.Exit(1)
 	}
+
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: unpackCacheBasePath,
+		Cache: source.CatalogCache(unpackCacheBasePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
 				logger := log.FromContext(ctx)

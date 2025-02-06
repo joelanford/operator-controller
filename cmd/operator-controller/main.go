@@ -308,7 +308,7 @@ func main() {
 	}
 
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: filepath.Join(cachePath, "unpack"),
+		Cache: source.BundleCache(filepath.Join(cachePath, "unpack")),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
 				srcContext := &types.SystemContext{
@@ -331,7 +331,7 @@ func main() {
 
 	clusterExtensionFinalizers := crfinalizer.NewFinalizers()
 	if err := clusterExtensionFinalizers.Register(controllers.ClusterExtensionCleanupUnpackCacheFinalizer, finalizers.FinalizerFunc(func(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
-		return crfinalizer.Result{}, unpacker.Cleanup(ctx, &source.BundleSource{Name: obj.GetName()})
+		return crfinalizer.Result{}, unpacker.Cleanup(ctx, obj.GetName())
 	})); err != nil {
 		setupLog.Error(err, "unable to register finalizer", "finalizerKey", controllers.ClusterExtensionCleanupUnpackCacheFinalizer)
 		os.Exit(1)

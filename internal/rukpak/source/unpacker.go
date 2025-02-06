@@ -28,8 +28,8 @@ type ImageSource struct {
 // specifications. A source should treat a bundle root directory as an opaque
 // file tree and delegate bundle format concerns to bundle parsers.
 type Unpacker interface {
-	Unpack(context.Context, *BundleSource) (*Result, error)
-	Cleanup(context.Context, *BundleSource) error
+	Unpack(context.Context, string, string) (*Result, error)
+	Cleanup(context.Context, string) error
 }
 
 // Result conveys progress information about unpacking bundle content.

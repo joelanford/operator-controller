@@ -37,26 +37,23 @@ func TestUnpackValidInsecure(t *testing.T) {
 	imageTagRef, _, cleanup := setupRegistry(t)
 	defer cleanup()
 
+	basePath := t.TempDir()
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: t.TempDir(),
+		Cache: source.BundleCache(basePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
 		},
 	}
-	bundleSource := &source.BundleSource{
-		Name: "test-bundle",
-		Type: source.SourceTypeImage,
-		Image: &source.ImageSource{
-			Ref: imageTagRef.String(),
-		},
-	}
 
-	oldBundlePath := filepath.Join(unpacker.BaseCachePath, bundleSource.Name, "old")
+	bundleID := "test-bundle"
+	bundleRef := imageTagRef.String()
+
+	oldBundlePath := filepath.Join(basePath, bundleID, "old")
 	err := os.MkdirAll(oldBundlePath, 0755)
 	require.NoError(t, err)
 
 	// Attempt to pull and unpack the image
-	result, err := unpacker.Unpack(context.Background(), bundleSource)
+	result, err := unpacker.Unpack(context.Background(), bundleID, bundleRef)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, source.StateUnpacked, result.State)
@@ -67,34 +64,30 @@ func TestUnpackValidInsecure(t *testing.T) {
 	require.NoError(t, err)
 	// Ensure the unpacked file matches the source content
 	assert.Equal(t, []byte(testFileContents), unpackedFile)
-	assert.NoError(t, unpacker.Cleanup(context.Background(), bundleSource))
+	assert.NoError(t, unpacker.Cleanup(context.Background(), bundleID))
 }
 
 func TestUnpackValidUsesCache(t *testing.T) {
 	_, imageDigestRef, cleanup := setupRegistry(t)
 	defer cleanup()
 
+	basePath := t.TempDir()
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: t.TempDir(),
+		Cache: source.BundleCache(basePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: buildPullContextfunc(t, imageDigestRef),
 		},
 	}
 
-	bundleSource := &source.BundleSource{
-		Name: "test-bundle",
-		Type: source.SourceTypeImage,
-		Image: &source.ImageSource{
-			Ref: imageDigestRef.String(),
-		},
-	}
+	bundleID := "test-bundle"
+	bundleRef := imageDigestRef.String()
 
 	// Populate the bundle cache with a folder that is not actually part of the image
-	testCacheFilePath := filepath.Join(unpacker.BaseCachePath, bundleSource.Name, imageDigestRef.Digest().String(), "test-folder")
+	testCacheFilePath := filepath.Join(basePath, bundleID, imageDigestRef.Digest().String(), "test-folder")
 	require.NoError(t, os.MkdirAll(testCacheFilePath, 0700))
 
 	// Attempt to pull and unpack the image
-	result, err := unpacker.Unpack(context.Background(), bundleSource)
+	result, err := unpacker.Unpack(context.Background(), bundleID, bundleRef)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, source.StateUnpacked, result.State)
@@ -102,37 +95,34 @@ func TestUnpackValidUsesCache(t *testing.T) {
 	// Make sure the original contents of the cache are still present. If the cached contents
 	// were not used, we would expect the original contents to be removed.
 	assert.DirExists(t, testCacheFilePath)
-	assert.NoError(t, unpacker.Cleanup(context.Background(), bundleSource))
+	assert.NoError(t, unpacker.Cleanup(context.Background(), bundleID))
 }
 
 func TestUnpackCacheCheckError(t *testing.T) {
 	imageTagRef, imageDigestRef, cleanup := setupRegistry(t)
 	defer cleanup()
 
+	basePath := t.TempDir()
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: t.TempDir(),
+		Cache: source.BundleCache(basePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
 		},
 	}
-	bundleSource := &source.BundleSource{
-		Name: "test-bundle",
-		Type: source.SourceTypeImage,
-		Image: &source.ImageSource{
-			Ref: imageTagRef.String(),
-		},
-	}
+
+	bundleID := "test-bundle"
+	bundleRef := imageTagRef.String()
 
 	// Create the unpack path and restrict its permissions
-	unpackPath := filepath.Join(unpacker.BaseCachePath, bundleSource.Name, imageDigestRef.Digest().String())
+	unpackPath := filepath.Join(basePath, bundleID, imageDigestRef.Digest().String())
 	require.NoError(t, os.MkdirAll(unpackPath, os.ModePerm))
-	require.NoError(t, os.Chmod(unpacker.BaseCachePath, 0000))
+	require.NoError(t, os.Chmod(basePath, 0000))
 	defer func() {
-		require.NoError(t, os.Chmod(unpacker.BaseCachePath, 0755))
+		require.NoError(t, os.Chmod(basePath, 0755))
 	}()
 
 	// Attempt to pull and unpack the image
-	_, err := unpacker.Unpack(context.Background(), bundleSource)
+	_, err := unpacker.Unpack(context.Background(), bundleID, bundleRef)
 	assert.ErrorContains(t, err, "permission denied")
 }
 
@@ -140,22 +130,19 @@ func TestUnpackNameOnlyImageReference(t *testing.T) {
 	imageTagRef, _, cleanup := setupRegistry(t)
 	defer cleanup()
 
+	basePath := t.TempDir()
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: t.TempDir(),
+		Cache: source.BundleCache(basePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
 		},
 	}
-	bundleSource := &source.BundleSource{
-		Name: "test-bundle",
-		Type: source.SourceTypeImage,
-		Image: &source.ImageSource{
-			Ref: reference.TrimNamed(imageTagRef).String(),
-		},
-	}
+
+	bundleID := "test-bundle"
+	bundleRef := reference.TrimNamed(imageTagRef).String()
 
 	// Attempt to pull and unpack the image
-	_, err := unpacker.Unpack(context.Background(), bundleSource)
+	_, err := unpacker.Unpack(context.Background(), bundleID, bundleRef)
 	require.ErrorContains(t, err, "tag or digest is needed")
 	assert.ErrorIs(t, err, reconcile.TerminalError(nil))
 }
@@ -164,23 +151,19 @@ func TestUnpackUnservedTaggedImageReference(t *testing.T) {
 	imageTagRef, _, cleanup := setupRegistry(t)
 	defer cleanup()
 
+	basePath := t.TempDir()
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: t.TempDir(),
+		Cache: source.BundleCache(basePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
 		},
 	}
-	bundleSource := &source.BundleSource{
-		Name: "test-bundle",
-		Type: source.SourceTypeImage,
-		Image: &source.ImageSource{
-			// Use a valid reference that is not served
-			Ref: fmt.Sprintf("%s:unserved-tag", reference.TrimNamed(imageTagRef)),
-		},
-	}
+
+	bundleID := "test-bundle"
+	bundleRef := fmt.Sprintf("%s:unserved-tag", reference.TrimNamed(imageTagRef))
 
 	// Attempt to pull and unpack the image
-	_, err := unpacker.Unpack(context.Background(), bundleSource)
+	_, err := unpacker.Unpack(context.Background(), bundleID, bundleRef)
 	assert.ErrorContains(t, err, "manifest unknown")
 }
 
@@ -188,116 +171,68 @@ func TestUnpackUnservedCanonicalImageReference(t *testing.T) {
 	_, imageDigestRef, cleanup := setupRegistry(t)
 	defer cleanup()
 
+	basePath := t.TempDir()
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: t.TempDir(),
+		Cache: source.BundleCache(basePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: buildPullContextfunc(t, imageDigestRef),
 		},
 	}
 
+	bundleID := "test-bundle"
 	origRef := imageDigestRef.String()
-	nonExistentRef := origRef[:len(origRef)-1] + "1"
-	bundleSource := &source.BundleSource{
-		Name: "test-bundle",
-		Type: source.SourceTypeImage,
-		Image: &source.ImageSource{
-			// Use a valid reference that is not served
-			Ref: nonExistentRef,
-		},
-	}
+	bundleRef := origRef[:len(origRef)-1] + "1"
 
 	// Attempt to pull and unpack the image
-	_, err := unpacker.Unpack(context.Background(), bundleSource)
+	_, err := unpacker.Unpack(context.Background(), bundleID, bundleRef)
 	assert.ErrorContains(t, err, "manifest unknown")
 }
 
-func TestUnpackInvalidSourceType(t *testing.T) {
-	unpacker := &source.ContainersImageRegistry{}
-	// Create BundleSource with invalid source type
-	bundleSource := &source.BundleSource{
-		Type: "invalid",
-	}
-
-	shouldPanic := func() {
-		// Attempt to pull and unpack the image
-		_, err := unpacker.Unpack(context.Background(), bundleSource)
-		if err != nil {
-			t.Error("func should have panicked")
-		}
-	}
-	assert.Panics(t, shouldPanic)
-}
-
-func TestUnpackInvalidNilImage(t *testing.T) {
-	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: t.TempDir(),
-	}
-	// Create BundleSource with nil Image
-	bundleSource := &source.BundleSource{
-		Name:  "test-bundle",
-		Type:  source.SourceTypeImage,
-		Image: nil,
-	}
-
-	// Attempt to unpack
-	result, err := unpacker.Unpack(context.Background(), bundleSource)
-	assert.Nil(t, result)
-	require.ErrorContains(t, err, "nil image source")
-	require.ErrorIs(t, err, reconcile.TerminalError(nil))
-	assert.NoDirExists(t, filepath.Join(unpacker.BaseCachePath, bundleSource.Name))
-}
-
 func TestUnpackInvalidImageRef(t *testing.T) {
+	basePath := t.TempDir()
 	unpacker := &source.ContainersImageRegistry{
+		Cache: source.BundleCache(basePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: func(context.Context) (*types.SystemContext, error) {
 				return &types.SystemContext{}, nil
 			},
 		},
 	}
-	// Create BundleSource with malformed image reference
-	bundleSource := &source.BundleSource{
-		Name: "test-bundle",
-		Type: source.SourceTypeImage,
-		Image: &source.ImageSource{
-			Ref: "invalid image ref",
-		},
-	}
+
+	bundleID := "test-bundle"
+	bundleRef := "invalid image ref"
 
 	// Attempt to unpack
-	result, err := unpacker.Unpack(context.Background(), bundleSource)
+	result, err := unpacker.Unpack(context.Background(), bundleID, bundleRef)
 	assert.Nil(t, result)
 	require.ErrorContains(t, err, "error parsing image reference")
 	require.ErrorIs(t, err, reconcile.TerminalError(nil))
-	assert.NoDirExists(t, filepath.Join(unpacker.BaseCachePath, bundleSource.Name))
+	assert.NoDirExists(t, filepath.Join(basePath, bundleID))
 }
 
 func TestUnpackUnexpectedFile(t *testing.T) {
 	imageTagRef, imageDigestRef, cleanup := setupRegistry(t)
 	defer cleanup()
 
+	basePath := t.TempDir()
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: t.TempDir(),
+		Cache: source.BundleCache(basePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
 		},
 	}
-	bundleSource := &source.BundleSource{
-		Name: "test-bundle",
-		Type: source.SourceTypeImage,
-		Image: &source.ImageSource{
-			Ref: imageTagRef.String(),
-		},
-	}
+
+	bundleID := "test-bundle"
+	bundleRef := imageTagRef.String()
 
 	// Create an unpack path that is a file
-	unpackPath := filepath.Join(unpacker.BaseCachePath, bundleSource.Name, imageDigestRef.Digest().String())
+	unpackPath := filepath.Join(basePath, bundleID, imageDigestRef.Digest().String())
 	require.NoError(t, os.MkdirAll(filepath.Dir(unpackPath), 0700))
 	require.NoError(t, os.WriteFile(unpackPath, []byte{}, 0600))
 
 	log.SetLogger(logr.Discard())
 	// Attempt to pull and unpack the image
-	_, err := unpacker.Unpack(context.Background(), bundleSource)
+	_, err := unpacker.Unpack(context.Background(), bundleID, bundleRef)
 	require.NoError(t, err)
 
 	// Ensure unpack path is now a directory
@@ -313,26 +248,23 @@ func TestUnpackCopySucceedsMountFails(t *testing.T) {
 	imageTagRef, _, cleanup := setupRegistry(t)
 	defer cleanup()
 
+	basePath := t.TempDir()
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: t.TempDir(),
+		Cache: source.BundleCache(basePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
 		},
 	}
-	bundleSource := &source.BundleSource{
-		Name: "test-bundle",
-		Type: source.SourceTypeImage,
-		Image: &source.ImageSource{
-			Ref: imageTagRef.String(),
-		},
-	}
+
+	bundleID := "test-bundle"
+	bundleRef := imageTagRef.String()
 
 	// Create an unpack path that is a non-writable directory
-	bundleDir := filepath.Join(unpacker.BaseCachePath, bundleSource.Name)
+	bundleDir := filepath.Join(basePath, bundleID)
 	require.NoError(t, os.MkdirAll(bundleDir, 0000))
 
 	// Attempt to pull and unpack the image
-	_, err := unpacker.Unpack(context.Background(), bundleSource)
+	_, err := unpacker.Unpack(context.Background(), bundleID, bundleRef)
 	assert.ErrorContains(t, err, "permission denied")
 }
 
@@ -340,26 +272,22 @@ func TestCleanup(t *testing.T) {
 	imageTagRef, _, cleanup := setupRegistry(t)
 	defer cleanup()
 
+	basePath := t.TempDir()
 	unpacker := &source.ContainersImageRegistry{
-		BaseCachePath: t.TempDir(),
+		Cache: source.BundleCache(basePath),
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: buildPullContextfunc(t, imageTagRef),
 		},
 	}
-	bundleSource := &source.BundleSource{
-		Name: "test-bundle",
-		Type: source.SourceTypeImage,
-		Image: &source.ImageSource{
-			Ref: imageTagRef.String(),
-		},
-	}
+
+	bundleID := "test-bundle"
 
 	// Create an unpack path for the bundle
-	bundleDir := filepath.Join(unpacker.BaseCachePath, bundleSource.Name)
-	require.NoError(t, os.MkdirAll(bundleDir, 0755))
+	bundleDir := filepath.Join(basePath, bundleID)
+	require.NoError(t, os.MkdirAll(bundleDir, 0500))
 
 	// Clean up the bundle
-	err := unpacker.Cleanup(context.Background(), bundleSource)
+	err := unpacker.Cleanup(context.Background(), bundleID)
 	require.NoError(t, err)
 	assert.NoDirExists(t, bundleDir)
 }

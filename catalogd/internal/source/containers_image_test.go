@@ -313,7 +313,7 @@ func TestImageRegistry(t *testing.T) {
 			t.Cleanup(cancel)
 			testCache := t.TempDir()
 			imgReg := &source.ContainersImageRegistry{
-				BaseCachePath: testCache,
+				Cache: source.CatalogCache(testCache),
 				Puller: &imageutil.ContainersImagePuller{
 					SourceCtxFunc: func(context.Context) (*types.SystemContext, error) {
 						return &types.SystemContext{
@@ -435,7 +435,7 @@ func TestImageRegistryMissingLabelConsistentFailure(t *testing.T) {
 	t.Cleanup(cancel)
 	testCache := t.TempDir()
 	imgReg := &source.ContainersImageRegistry{
-		BaseCachePath: testCache,
+		Cache: &imageutil.DiskCache{BasePath: testCache},
 		Puller: &imageutil.ContainersImagePuller{
 			SourceCtxFunc: func(context.Context) (*types.SystemContext, error) {
 				return &types.SystemContext{}, nil
