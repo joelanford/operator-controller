@@ -5,15 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"iter"
 	"net/http"
 	"testing"
 	"testing/fstest"
 	"time"
 
 	"github.com/containers/image/v5/docker/reference"
-	"github.com/containers/image/v5/types"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	ocispecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -59,7 +60,7 @@ func (ms *MockCache) Fetch(_ context.Context, _ string, _ reference.Canonical) (
 	panic("not implemented")
 }
 
-func (ms *MockCache) Store(_ context.Context, _ string, _ reference.Named, _ reference.Canonical, _ types.Image, _ types.ImageSource) (fs.FS, time.Time, error) {
+func (ms *MockCache) Store(_ context.Context, _ string, _ reference.Named, _ reference.Canonical, _ ocispecv1.Image, _ iter.Seq[imageutil.LayerData]) (fs.FS, time.Time, error) {
 	panic("not implemented")
 }
 

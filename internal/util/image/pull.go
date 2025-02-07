@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"iter"
 	"os"
 	"time"
 
@@ -14,10 +16,13 @@ import (
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/oci/layout"
+	"github.com/containers/image/v5/pkg/blobinfocache/none"
+	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/pkg/sysregistriesv2"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
 	"github.com/go-logr/logr"
+	ocispecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -26,9 +31,15 @@ type Puller interface {
 	Pull(context.Context, string, string, Cache) (fs.FS, reference.Canonical, time.Time, error)
 }
 
+type LayerData struct {
+	Reader io.Reader
+	Index  int
+	Err    error
+}
+
 type Cache interface {
 	Fetch(context.Context, string, reference.Canonical) (fs.FS, time.Time, error)
-	Store(context.Context, string, reference.Named, reference.Canonical, types.Image, types.ImageSource) (fs.FS, time.Time, error)
+	Store(context.Context, string, reference.Named, reference.Canonical, ocispecv1.Image, iter.Seq[LayerData]) (fs.FS, time.Time, error)
 	DeleteID(context.Context, string) error
 	GarbageCollect(context.Context, string, reference.Canonical) error
 }
@@ -202,7 +213,41 @@ func (p *ContainersImagePuller) applyImage(ctx context.Context, id string, srcRe
 			panic(err)
 		}
 	}()
-	return cache.Store(ctx, id, srcRef, canonicalRef, img, imgSrc)
+
+	ociImg, err := img.OCIConfig(ctx)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+
+	layerIter := iter.Seq[LayerData](func(yield func(LayerData) bool) {
+		for i, layerInfo := range img.LayerInfos() {
+			ld := LayerData{Index: i}
+			layerReader, _, err := imgSrc.GetBlob(ctx, layerInfo, none.NoCache)
+			if err != nil {
+				ld.Err = fmt.Errorf("error getting layer blob reader: %w", err)
+				if !yield(ld) {
+					return
+				}
+			}
+			defer layerReader.Close()
+
+			decompressed, _, err := compression.AutoDecompress(layerReader)
+			if err != nil {
+				ld.Err = fmt.Errorf("error decompressing layer: %w", err)
+				if !yield(ld) {
+					return
+				}
+			}
+			defer decompressed.Close()
+
+			ld.Reader = decompressed
+			if !yield(ld) {
+				return
+			}
+		}
+	})
+
+	return cache.Store(ctx, id, srcRef, canonicalRef, *ociImg, layerIter)
 }
 
 func loadPolicyContext(sourceContext *types.SystemContext, l logr.Logger) (*signature.PolicyContext, error) {

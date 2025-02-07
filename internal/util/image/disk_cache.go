@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"iter"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,9 +13,6 @@ import (
 
 	"github.com/containerd/containerd/archive"
 	"github.com/containers/image/v5/docker/reference"
-	"github.com/containers/image/v5/pkg/blobinfocache/none"
-	"github.com/containers/image/v5/pkg/compression"
-	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 	ocispecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -85,27 +83,41 @@ func (a *diskCache) unpackPath(id string, digest digest.Digest) string {
 	return filepath.Join(a.idPath(id), digest.String())
 }
 
-func (a *diskCache) Store(ctx context.Context, id string, srcRef reference.Named, canonicalRef reference.Canonical, img types.Image, imgSrc types.ImageSource) (fs.FS, time.Time, error) {
-	var filter archive.Filter
+func (a *diskCache) Store(ctx context.Context, id string, srcRef reference.Named, canonicalRef reference.Canonical, imgCfg ocispecv1.Image, layers iter.Seq[LayerData]) (fs.FS, time.Time, error) {
+	var applyOpts []archive.ApplyOpt
 	if a.filterFunc != nil {
-		var err error
-
-		imgCfg, err := img.OCIConfig(ctx)
-		if err != nil {
-			return nil, time.Time{}, fmt.Errorf("error parsing image config: %w", err)
-		}
-
-		filter, err = a.filterFunc(ctx, srcRef, *imgCfg)
+		filter, err := a.filterFunc(ctx, srcRef, imgCfg)
 		if err != nil {
 			return nil, time.Time{}, err
 		}
+		applyOpts = append(applyOpts, archive.WithFilter(filter))
 	}
 
-	modTime, err := a.applyLayersToDisk(ctx, id, canonicalRef, img, imgSrc, filter)
-	if err != nil {
-		return nil, time.Time{}, err
+	dest := a.unpackPath(id, canonicalRef.Digest())
+	if err := fsutil.EnsureEmptyDirectory(dest, 0700); err != nil {
+		return nil, time.Time{}, fmt.Errorf("error ensuring empty unpack directory: %w", err)
 	}
-	return os.DirFS(a.unpackPath(id, canonicalRef.Digest())), modTime, nil
+	modTime, err := func() (time.Time, error) {
+		l := log.FromContext(ctx)
+		l.Info("unpacking image", "path", dest)
+		for layer := range layers {
+			if layer.Err != nil {
+				return time.Time{}, fmt.Errorf("error reading layer[%d]: %w", layer.Index, layer.Err)
+			}
+			if _, err := archive.Apply(ctx, dest, layer.Reader, applyOpts...); err != nil {
+				return time.Time{}, fmt.Errorf("error applying layer[%d]: %w", layer.Index, err)
+			}
+			l.Info("applied layer", "layer", layer.Index)
+		}
+		if err := fsutil.SetReadOnlyRecursive(dest); err != nil {
+			return time.Time{}, fmt.Errorf("error making unpack directory read-only: %w", err)
+		}
+		return fsutil.GetDirectoryModTime(dest)
+	}()
+	if err != nil {
+		return nil, time.Time{}, errors.Join(err, fsutil.DeleteReadOnlyRecursive(dest))
+	}
+	return os.DirFS(dest), modTime, nil
 }
 
 func (a *diskCache) DeleteID(_ context.Context, id string) error {
@@ -129,50 +141,4 @@ func (a *diskCache) GarbageCollect(_ context.Context, id string, keep reference.
 		}
 	}
 	return nil
-}
-
-// applyLayersToDisk writes the layers from img and imgSrc to disk using the provided filter.
-// The destination directory will be created, if necessary. If dest is already present, its
-// contents will be deleted. If img and imgSrc do not represent the same image, an error will
-// be returned due to a mismatch in the expected layers. Once complete, the dest and its contents
-// are marked as read-only to provide a safeguard against unintended changes.
-func (a *diskCache) applyLayersToDisk(ctx context.Context, id string, canonicalRef reference.Canonical, img types.Image, imgSrc types.ImageSource, filter archive.Filter) (time.Time, error) {
-	var applyOpts []archive.ApplyOpt
-	if filter != nil {
-		applyOpts = append(applyOpts, archive.WithFilter(filter))
-	}
-
-	dest := a.unpackPath(id, canonicalRef.Digest())
-	if err := fsutil.EnsureEmptyDirectory(dest, 0700); err != nil {
-		return time.Time{}, fmt.Errorf("error ensuring empty unpack directory: %w", err)
-	}
-	l := log.FromContext(ctx)
-	l.Info("unpacking image", "path", dest)
-	for i, layerInfo := range img.LayerInfos() {
-		if err := func() error {
-			layerReader, _, err := imgSrc.GetBlob(ctx, layerInfo, none.NoCache)
-			if err != nil {
-				return fmt.Errorf("error getting blob for layer[%d]: %w", i, err)
-			}
-			defer layerReader.Close()
-
-			decompressed, _, err := compression.AutoDecompress(layerReader)
-			if err != nil {
-				return fmt.Errorf("auto-decompress failed: %w", err)
-			}
-			defer decompressed.Close()
-
-			if _, err := archive.Apply(ctx, dest, decompressed, applyOpts...); err != nil {
-				return fmt.Errorf("error applying layer[%d]: %w", i, err)
-			}
-			l.Info("applied layer", "layer", i)
-			return nil
-		}(); err != nil {
-			return time.Time{}, errors.Join(err, fsutil.DeleteReadOnlyRecursive(dest))
-		}
-	}
-	if err := fsutil.SetReadOnlyRecursive(dest); err != nil {
-		return time.Time{}, fmt.Errorf("error making unpack directory read-only: %w", err)
-	}
-	return fsutil.GetDirectoryModTime(dest)
 }
