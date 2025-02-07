@@ -23,9 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
-	"github.com/containers/image/v5/docker/reference"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/meta"
 	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
@@ -41,22 +39,7 @@ import (
 	"github.com/operator-framework/operator-controller/internal/contentmanager"
 	cmcache "github.com/operator-framework/operator-controller/internal/contentmanager/cache"
 	"github.com/operator-framework/operator-controller/internal/controllers"
-	imageutil "github.com/operator-framework/operator-controller/internal/util/image"
 )
-
-type MockImagePuller struct {
-	err     error
-	fsys    fs.FS
-	modTime time.Time
-	ref     reference.Canonical
-}
-
-func (m *MockImagePuller) Pull(context.Context, string, string, imageutil.Cache) (fs.FS, reference.Canonical, time.Time, error) {
-	if m.err != nil {
-		return nil, nil, time.Time{}, m.err
-	}
-	return m.fsys, m.ref, m.modTime, nil
-}
 
 func newClient(t *testing.T) client.Client {
 	// TODO: this is a live client, which behaves differently than a cache client.

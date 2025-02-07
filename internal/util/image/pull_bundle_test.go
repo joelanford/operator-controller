@@ -68,7 +68,7 @@ func TestUnpackValidInsecure(t *testing.T) {
 	// Verify old paths were cleaned up
 	require.NoDirExists(t, oldBundlePath)
 
-	require.NoError(t, imageCache.DeleteID(context.Background(), bundleID))
+	require.NoError(t, imageCache.Delete(context.Background(), bundleID))
 }
 
 func TestUnpackValidUsesCache(t *testing.T) {
@@ -107,7 +107,7 @@ func TestUnpackValidUsesCache(t *testing.T) {
 	// Ensure the returned timestamp was between before and after
 	require.Equal(t, testBundleDirStat.ModTime(), modTime)
 
-	require.NoError(t, imageCache.DeleteID(context.Background(), bundleID))
+	require.NoError(t, imageCache.Delete(context.Background(), bundleID))
 }
 
 func TestUnpackCacheCheckError(t *testing.T) {
@@ -245,7 +245,7 @@ func TestUnpackUnexpectedFile(t *testing.T) {
 	// Ensure the returned timestamp was between before and after
 	requireTimeBetween(t, before, modTime, after)
 
-	require.NoError(t, imageCache.DeleteID(context.Background(), bundleID))
+	require.NoError(t, imageCache.Delete(context.Background(), bundleID))
 }
 
 func TestUnpackCopySucceedsMountFails(t *testing.T) {
@@ -281,7 +281,7 @@ func TestCleanup(t *testing.T) {
 	require.NoError(t, os.MkdirAll(bundleDir, 0500))
 
 	// Clean up the bundle
-	require.NoError(t, imageCache.DeleteID(context.Background(), bundleID))
+	require.NoError(t, imageCache.Delete(context.Background(), bundleID))
 	assert.NoDirExists(t, bundleDir)
 }
 

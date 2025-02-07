@@ -234,12 +234,14 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *catal
 	}
 
 	if catalog.Spec.Source.Type != catalogdv1.SourceTypeImage {
-		panic(fmt.Sprintf("programmer error: source type %q is unable to handle specified catalog source type %q", catalogdv1.SourceTypeImage, catalog.Spec.Source.Type))
+		err := reconcile.TerminalError(fmt.Errorf("unknown source type %q", catalog.Spec.Source.Type))
+		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
+		return ctrl.Result{}, err
 	}
 	if catalog.Spec.Source.Image == nil {
-		unpackErr := reconcile.TerminalError(fmt.Errorf("error parsing catalog, catalog %s has a nil image source", catalog.Name))
-		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), unpackErr)
-		return ctrl.Result{}, unpackErr
+		err := reconcile.TerminalError(fmt.Errorf("error parsing catalog, catalog %s has a nil image source", catalog.Name))
+		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
+		return ctrl.Result{}, err
 	}
 
 	fsys, canonicalRef, unpackTime, err := r.ImagePuller.Pull(ctx, catalog.Name, catalog.Spec.Source.Image.Ref, r.ImageCache)
@@ -271,7 +273,7 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *catal
 		observedGeneration: catalog.GetGeneration(),
 	}
 	r.storedCatalogsMu.Unlock()
-	return nextPollResult(time.Now(), catalog), nil
+	return nextPollResult(lastSuccessfulPoll, catalog), nil
 }
 
 func (r *ClusterCatalogReconciler) getCurrentState(catalog *catalogdv1.ClusterCatalog) (*catalogdv1.ClusterCatalogStatus, storedCatalogData, bool) {
@@ -450,7 +452,7 @@ func (r *ClusterCatalogReconciler) deleteCatalogCache(ctx context.Context, catal
 		return err
 	}
 	updateStatusNotServing(&catalog.Status, catalog.GetGeneration())
-	if err := r.ImageCache.DeleteID(ctx, catalog.Name); err != nil {
+	if err := r.ImageCache.Delete(ctx, catalog.Name); err != nil {
 		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
 		return err
 	}

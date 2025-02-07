@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"iter"
 	"os"
@@ -20,6 +21,19 @@ import (
 	errorutil "github.com/operator-framework/operator-controller/internal/util/error"
 	fsutil "github.com/operator-framework/operator-controller/internal/util/fs"
 )
+
+type LayerData struct {
+	Reader io.Reader
+	Index  int
+	Err    error
+}
+
+type Cache interface {
+	Fetch(context.Context, string, reference.Canonical) (fs.FS, time.Time, error)
+	Store(context.Context, string, reference.Named, reference.Canonical, ocispecv1.Image, iter.Seq[LayerData]) (fs.FS, time.Time, error)
+	Delete(context.Context, string) error
+	GarbageCollect(context.Context, string, reference.Canonical) error
+}
 
 const ConfigDirLabel = "operators.operatorframework.io.index.configs.v1"
 
@@ -58,9 +72,9 @@ type diskCache struct {
 	filterFunc func(context.Context, reference.Named, ocispecv1.Image) (archive.Filter, error)
 }
 
-func (a *diskCache) Fetch(ctx context.Context, id string, canonicalRef reference.Canonical) (fs.FS, time.Time, error) {
+func (a *diskCache) Fetch(ctx context.Context, ownerID string, canonicalRef reference.Canonical) (fs.FS, time.Time, error) {
 	l := log.FromContext(ctx)
-	unpackPath := a.unpackPath(id, canonicalRef.Digest())
+	unpackPath := a.unpackPath(ownerID, canonicalRef.Digest())
 	modTime, err := fsutil.GetDirectoryModTime(unpackPath)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
@@ -72,18 +86,18 @@ func (a *diskCache) Fetch(ctx context.Context, id string, canonicalRef reference
 		return nil, time.Time{}, fmt.Errorf("error checking image content already unpacked: %w", err)
 	}
 	l.Info("image already unpacked")
-	return os.DirFS(a.unpackPath(id, canonicalRef.Digest())), modTime, nil
+	return os.DirFS(a.unpackPath(ownerID, canonicalRef.Digest())), modTime, nil
 }
 
-func (a *diskCache) idPath(id string) string {
-	return filepath.Join(a.basePath, id)
+func (a *diskCache) ownerIDPath(ownerID string) string {
+	return filepath.Join(a.basePath, ownerID)
 }
 
-func (a *diskCache) unpackPath(id string, digest digest.Digest) string {
-	return filepath.Join(a.idPath(id), digest.String())
+func (a *diskCache) unpackPath(ownerID string, digest digest.Digest) string {
+	return filepath.Join(a.ownerIDPath(ownerID), digest.String())
 }
 
-func (a *diskCache) Store(ctx context.Context, id string, srcRef reference.Named, canonicalRef reference.Canonical, imgCfg ocispecv1.Image, layers iter.Seq[LayerData]) (fs.FS, time.Time, error) {
+func (a *diskCache) Store(ctx context.Context, ownerID string, srcRef reference.Named, canonicalRef reference.Canonical, imgCfg ocispecv1.Image, layers iter.Seq[LayerData]) (fs.FS, time.Time, error) {
 	var applyOpts []archive.ApplyOpt
 	if a.filterFunc != nil {
 		filter, err := a.filterFunc(ctx, srcRef, imgCfg)
@@ -93,7 +107,7 @@ func (a *diskCache) Store(ctx context.Context, id string, srcRef reference.Named
 		applyOpts = append(applyOpts, archive.WithFilter(filter))
 	}
 
-	dest := a.unpackPath(id, canonicalRef.Digest())
+	dest := a.unpackPath(ownerID, canonicalRef.Digest())
 	if err := fsutil.EnsureEmptyDirectory(dest, 0700); err != nil {
 		return nil, time.Time{}, fmt.Errorf("error ensuring empty unpack directory: %w", err)
 	}
@@ -120,13 +134,13 @@ func (a *diskCache) Store(ctx context.Context, id string, srcRef reference.Named
 	return os.DirFS(dest), modTime, nil
 }
 
-func (a *diskCache) DeleteID(_ context.Context, id string) error {
-	return fsutil.DeleteReadOnlyRecursive(a.idPath(id))
+func (a *diskCache) Delete(_ context.Context, ownerID string) error {
+	return fsutil.DeleteReadOnlyRecursive(a.ownerIDPath(ownerID))
 }
 
-func (a *diskCache) GarbageCollect(_ context.Context, id string, keep reference.Canonical) error {
-	idPath := a.idPath(id)
-	dirEntries, err := os.ReadDir(idPath)
+func (a *diskCache) GarbageCollect(_ context.Context, ownerID string, keep reference.Canonical) error {
+	ownerIDPath := a.ownerIDPath(ownerID)
+	dirEntries, err := os.ReadDir(ownerIDPath)
 	if err != nil {
 		return fmt.Errorf("error reading image directories: %w", err)
 	}
@@ -136,7 +150,7 @@ func (a *diskCache) GarbageCollect(_ context.Context, id string, keep reference.
 	})
 
 	for _, dirEntry := range dirEntries {
-		if err := fsutil.DeleteReadOnlyRecursive(filepath.Join(idPath, dirEntry.Name())); err != nil {
+		if err := fsutil.DeleteReadOnlyRecursive(filepath.Join(ownerIDPath, dirEntry.Name())); err != nil {
 			return fmt.Errorf("error removing entry %s: %w", dirEntry.Name(), err)
 		}
 	}

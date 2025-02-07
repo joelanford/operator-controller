@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/containers/image/v5/types"
-	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
@@ -47,6 +46,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -313,7 +313,7 @@ func main() {
 				DockerCertPath: pullCasDir,
 				OCICertPath:    pullCasDir,
 			}
-			logger := logr.FromContextOrDiscard(ctx)
+			logger := log.FromContext(ctx)
 			if _, err := os.Stat(authFilePath); err == nil && globalPullSecretKey != nil {
 				logger.Info("using available authentication information for pulling image")
 				srcContext.AuthFilePath = authFilePath
@@ -328,7 +328,7 @@ func main() {
 
 	clusterExtensionFinalizers := crfinalizer.NewFinalizers()
 	if err := clusterExtensionFinalizers.Register(controllers.ClusterExtensionCleanupUnpackCacheFinalizer, finalizers.FinalizerFunc(func(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
-		return crfinalizer.Result{}, imageCache.DeleteID(ctx, obj.GetName())
+		return crfinalizer.Result{}, imageCache.Delete(ctx, obj.GetName())
 	})); err != nil {
 		setupLog.Error(err, "unable to register finalizer", "finalizerKey", controllers.ClusterExtensionCleanupUnpackCacheFinalizer)
 		os.Exit(1)

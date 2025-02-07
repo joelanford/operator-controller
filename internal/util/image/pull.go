@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"iter"
 	"os"
@@ -22,7 +21,6 @@ import (
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
 	"github.com/go-logr/logr"
-	ocispecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -31,26 +29,13 @@ type Puller interface {
 	Pull(context.Context, string, string, Cache) (fs.FS, reference.Canonical, time.Time, error)
 }
 
-type LayerData struct {
-	Reader io.Reader
-	Index  int
-	Err    error
-}
-
-type Cache interface {
-	Fetch(context.Context, string, reference.Canonical) (fs.FS, time.Time, error)
-	Store(context.Context, string, reference.Named, reference.Canonical, ocispecv1.Image, iter.Seq[LayerData]) (fs.FS, time.Time, error)
-	DeleteID(context.Context, string) error
-	GarbageCollect(context.Context, string, reference.Canonical) error
-}
-
 var insecurePolicy = []byte(`{"default":[{"type":"insecureAcceptAnything"}]}`)
 
 type ContainersImagePuller struct {
 	SourceCtxFunc func(context.Context) (*types.SystemContext, error)
 }
 
-func (p *ContainersImagePuller) Pull(ctx context.Context, id string, ref string, cache Cache) (fs.FS, reference.Canonical, time.Time, error) {
+func (p *ContainersImagePuller) Pull(ctx context.Context, ownerID string, ref string, cache Cache) (fs.FS, reference.Canonical, time.Time, error) {
 	// Reload registries cache in case of configuration update
 	sysregistriesv2.InvalidateCache()
 
@@ -87,7 +72,7 @@ func (p *ContainersImagePuller) Pull(ctx context.Context, id string, ref string,
 	// canonical ref. If so, we're done.
 	//
 	///////////////////////////////////////////////////////
-	fsys, modTime, err := cache.Fetch(ctx, id, canonicalRef)
+	fsys, modTime, err := cache.Fetch(ctx, ownerID, canonicalRef)
 	if err != nil {
 		return nil, nil, time.Time{}, fmt.Errorf("error checking if ref has already been applied: %w", err)
 	}
@@ -154,7 +139,7 @@ func (p *ContainersImagePuller) Pull(ctx context.Context, id string, ref string,
 	}
 	l.Info("pulled image")
 
-	fsys, modTime, err = p.applyImage(ctx, id, dockerRef, canonicalRef, layoutImgRef, cache, srcCtx)
+	fsys, modTime, err = p.applyImage(ctx, ownerID, dockerRef, canonicalRef, layoutImgRef, cache, srcCtx)
 	if err != nil {
 		return nil, nil, time.Time{}, fmt.Errorf("error applying image: %w", err)
 	}
@@ -164,7 +149,7 @@ func (p *ContainersImagePuller) Pull(ctx context.Context, id string, ref string,
 	// Clean up any images from the cache that we no longer need.
 	//
 	/////////////////////////////////////////////////////////////
-	if err := cache.GarbageCollect(ctx, id, canonicalRef); err != nil {
+	if err := cache.GarbageCollect(ctx, ownerID, canonicalRef); err != nil {
 		return nil, nil, time.Time{}, fmt.Errorf("error deleting old images: %w", err)
 	}
 	return fsys, canonicalRef, modTime, nil
@@ -196,7 +181,7 @@ func resolveCanonicalRef(ctx context.Context, imgRef types.ImageReference, srcCt
 	return canonicalRef, nil
 }
 
-func (p *ContainersImagePuller) applyImage(ctx context.Context, id string, srcRef reference.Named, canonicalRef reference.Canonical, srcImgRef types.ImageReference, cache Cache, sourceContext *types.SystemContext) (fs.FS, time.Time, error) {
+func (p *ContainersImagePuller) applyImage(ctx context.Context, ownerID string, srcRef reference.Named, canonicalRef reference.Canonical, srcImgRef types.ImageReference, cache Cache, sourceContext *types.SystemContext) (fs.FS, time.Time, error) {
 	imgSrc, err := srcImgRef.NewImageSource(ctx, sourceContext)
 	if err != nil {
 		return nil, time.Time{}, fmt.Errorf("error creating image source: %w", err)
@@ -247,7 +232,7 @@ func (p *ContainersImagePuller) applyImage(ctx context.Context, id string, srcRe
 		}
 	})
 
-	return cache.Store(ctx, id, srcRef, canonicalRef, *ociImg, layerIter)
+	return cache.Store(ctx, ownerID, srcRef, canonicalRef, *ociImg, layerIter)
 }
 
 func loadPolicyContext(sourceContext *types.SystemContext, l logr.Logger) (*signature.PolicyContext, error) {

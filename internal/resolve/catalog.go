@@ -117,7 +117,7 @@ func (r *CatalogResolver) Resolve(ctx context.Context, ext *ocv1.ClusterExtensio
 			predicates = append(predicates, successorPredicate)
 		}
 
-		// Store the predicates to get the candidate bundles
+		// Apply the predicates to get the candidate bundles
 		packageFBC.Bundles = filter.Filter(packageFBC.Bundles, filter.And(predicates...))
 		cs.MatchedBundles = len(packageFBC.Bundles)
 		if len(packageFBC.Bundles) == 0 {

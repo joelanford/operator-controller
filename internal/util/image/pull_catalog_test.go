@@ -393,8 +393,8 @@ func TestImageRegistry(t *testing.T) {
 				assert.Equal(t, tt.terminal, isTerminal, "expected terminal %v, got %v", tt.terminal, isTerminal)
 			}
 
-			assert.NoError(t, imageCache.DeleteID(ctx, tt.catalog.Name))
-			assert.NoError(t, imageCache.DeleteID(ctx, tt.catalog.Name), "DeleteID should ignore missing files")
+			assert.NoError(t, imageCache.Delete(ctx, tt.catalog.Name))
+			assert.NoError(t, imageCache.Delete(ctx, tt.catalog.Name), "Delete should ignore missing files")
 		})
 	}
 }

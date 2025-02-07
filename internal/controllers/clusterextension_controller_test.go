@@ -34,6 +34,7 @@ import (
 	"github.com/operator-framework/operator-controller/internal/finalizers"
 	"github.com/operator-framework/operator-controller/internal/labels"
 	"github.com/operator-framework/operator-controller/internal/resolve"
+	imageutil "github.com/operator-framework/operator-controller/internal/util/image"
 )
 
 // Describe: ClusterExtension Controller Test
@@ -101,24 +102,24 @@ func TestClusterExtensionResolutionFails(t *testing.T) {
 func TestClusterExtensionResolutionSuccessfulUnpackFails(t *testing.T) {
 	type testCase struct {
 		name           string
-		unpackErr      error
+		pullErr        error
 		expectTerminal bool
 	}
 	for _, tc := range []testCase{
 		{
-			name:      "non-terminal unpack failure",
-			unpackErr: errors.New("unpack failure"),
+			name:    "non-terminal pull failure",
+			pullErr: errors.New("pull failure"),
 		},
 		{
-			name:           "terminal unpack failure",
-			unpackErr:      reconcile.TerminalError(errors.New("terminal unpack failure")),
+			name:           "terminal pull failure",
+			pullErr:        reconcile.TerminalError(errors.New("terminal pull failure")),
 			expectTerminal: true,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cl, reconciler := newClientAndReconciler(t)
-			reconciler.ImagePuller = &MockImagePuller{
-				err: tc.unpackErr,
+			reconciler.ImagePuller = &imageutil.MockPuller{
+				Error: tc.pullErr,
 			}
 
 			ctx := context.Background()
@@ -168,7 +169,7 @@ func TestClusterExtensionResolutionSuccessfulUnpackFails(t *testing.T) {
 
 			isTerminal := errors.Is(err, reconcile.TerminalError(nil))
 			assert.Equal(t, tc.expectTerminal, isTerminal, "expected terminal error: %v, got: %v", tc.expectTerminal, isTerminal)
-			require.ErrorContains(t, err, tc.unpackErr.Error())
+			require.ErrorContains(t, err, tc.pullErr.Error())
 
 			t.Log("By fetching updated cluster extension after reconcile")
 			require.NoError(t, cl.Get(ctx, extKey, clusterExtension))
@@ -197,8 +198,8 @@ func TestClusterExtensionResolutionSuccessfulUnpackFails(t *testing.T) {
 
 func TestClusterExtensionResolutionAndUnpackSuccessfulApplierFails(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.ImagePuller = &MockImagePuller{
-		fsys: fstest.MapFS{},
+	reconciler.ImagePuller = &imageutil.MockPuller{
+		ImageFS: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
@@ -328,8 +329,8 @@ func TestClusterExtensionServiceAccountNotFound(t *testing.T) {
 
 func TestClusterExtensionApplierFailsWithBundleInstalled(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.ImagePuller = &MockImagePuller{
-		fsys: fstest.MapFS{},
+	reconciler.ImagePuller = &imageutil.MockPuller{
+		ImageFS: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
@@ -424,8 +425,8 @@ func TestClusterExtensionApplierFailsWithBundleInstalled(t *testing.T) {
 
 func TestClusterExtensionManagerFailed(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.ImagePuller = &MockImagePuller{
-		fsys: fstest.MapFS{},
+	reconciler.ImagePuller = &imageutil.MockPuller{
+		ImageFS: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
@@ -502,8 +503,8 @@ func TestClusterExtensionManagerFailed(t *testing.T) {
 
 func TestClusterExtensionManagedContentCacheWatchFail(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.ImagePuller = &MockImagePuller{
-		fsys: fstest.MapFS{},
+	reconciler.ImagePuller = &imageutil.MockPuller{
+		ImageFS: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
@@ -583,8 +584,8 @@ func TestClusterExtensionManagedContentCacheWatchFail(t *testing.T) {
 
 func TestClusterExtensionInstallationSucceeds(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.ImagePuller = &MockImagePuller{
-		fsys: fstest.MapFS{},
+	reconciler.ImagePuller = &imageutil.MockPuller{
+		ImageFS: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
@@ -661,8 +662,8 @@ func TestClusterExtensionInstallationSucceeds(t *testing.T) {
 
 func TestClusterExtensionDeleteFinalizerFails(t *testing.T) {
 	cl, reconciler := newClientAndReconciler(t)
-	reconciler.ImagePuller = &MockImagePuller{
-		fsys: fstest.MapFS{},
+	reconciler.ImagePuller = &imageutil.MockPuller{
+		ImageFS: fstest.MapFS{},
 	}
 
 	ctx := context.Background()
