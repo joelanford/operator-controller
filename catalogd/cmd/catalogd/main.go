@@ -59,7 +59,6 @@ import (
 	"github.com/operator-framework/operator-controller/catalogd/internal/garbagecollection"
 	catalogdmetrics "github.com/operator-framework/operator-controller/catalogd/internal/metrics"
 	"github.com/operator-framework/operator-controller/catalogd/internal/serverutil"
-	"github.com/operator-framework/operator-controller/catalogd/internal/source"
 	"github.com/operator-framework/operator-controller/catalogd/internal/storage"
 	"github.com/operator-framework/operator-controller/catalogd/internal/webhook"
 	fsutil "github.com/operator-framework/operator-controller/internal/util/fs"
@@ -266,31 +265,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpackCacheBasePath := filepath.Join(cacheDir, source.UnpackCacheDir)
+	unpackCacheBasePath := filepath.Join(cacheDir, "unpack")
 	if err := os.MkdirAll(unpackCacheBasePath, 0770); err != nil {
 		setupLog.Error(err, "unable to create cache directory for unpacking")
 		os.Exit(1)
 	}
 
-	unpacker := &source.ContainersImageRegistry{
-		Cache: imageutil.CatalogCache(unpackCacheBasePath),
-		Puller: &imageutil.ContainersImagePuller{
-			SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
-				logger := log.FromContext(ctx)
-				srcContext := &types.SystemContext{
-					DockerCertPath: pullCasDir,
-					OCICertPath:    pullCasDir,
-				}
-				if _, err := os.Stat(authFilePath); err == nil && globalPullSecretKey != nil {
-					logger.Info("using available authentication information for pulling image")
-					srcContext.AuthFilePath = authFilePath
-				} else if os.IsNotExist(err) {
-					logger.Info("no authentication information found for pulling image, proceeding without auth")
-				} else {
-					return nil, fmt.Errorf("could not stat auth file, error: %w", err)
-				}
-				return srcContext, nil
-			},
+	imageCache := imageutil.CatalogCache(unpackCacheBasePath)
+	imagePuller := &imageutil.ContainersImagePuller{
+		SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
+			logger := log.FromContext(ctx)
+			srcContext := &types.SystemContext{
+				DockerCertPath: pullCasDir,
+				OCICertPath:    pullCasDir,
+			}
+			if _, err := os.Stat(authFilePath); err == nil && globalPullSecretKey != nil {
+				logger.Info("using available authentication information for pulling image")
+				srcContext.AuthFilePath = authFilePath
+			} else if os.IsNotExist(err) {
+				logger.Info("no authentication information found for pulling image, proceeding without auth")
+			} else {
+				return nil, fmt.Errorf("could not stat auth file, error: %w", err)
+			}
+			return srcContext, nil
 		},
 	}
 
@@ -331,9 +328,10 @@ func main() {
 	}
 
 	if err = (&corecontrollers.ClusterCatalogReconciler{
-		Client:   mgr.GetClient(),
-		Unpacker: unpacker,
-		Storage:  localStorage,
+		Client:      mgr.GetClient(),
+		ImageCache:  imageCache,
+		ImagePuller: imagePuller,
+		Storage:     localStorage,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterCatalog")
 		os.Exit(1)

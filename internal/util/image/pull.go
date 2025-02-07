@@ -185,7 +185,7 @@ func resolveCanonicalRef(ctx context.Context, imgRef types.ImageReference, srcCt
 	return canonicalRef, nil
 }
 
-func (p *ContainersImagePuller) applyImage(ctx context.Context, id string, srcRef reference.Named, canonicalRef reference.Canonical, srcImgRef types.ImageReference, applier Cache, sourceContext *types.SystemContext) (fs.FS, time.Time, error) {
+func (p *ContainersImagePuller) applyImage(ctx context.Context, id string, srcRef reference.Named, canonicalRef reference.Canonical, srcImgRef types.ImageReference, cache Cache, sourceContext *types.SystemContext) (fs.FS, time.Time, error) {
 	imgSrc, err := srcImgRef.NewImageSource(ctx, sourceContext)
 	if err != nil {
 		return nil, time.Time{}, fmt.Errorf("error creating image source: %w", err)
@@ -202,7 +202,7 @@ func (p *ContainersImagePuller) applyImage(ctx context.Context, id string, srcRe
 			panic(err)
 		}
 	}()
-	return applier.Store(ctx, id, srcRef, canonicalRef, img, imgSrc)
+	return cache.Store(ctx, id, srcRef, canonicalRef, img, imgSrc)
 }
 
 func loadPolicyContext(sourceContext *types.SystemContext, l logr.Logger) (*signature.PolicyContext, error) {

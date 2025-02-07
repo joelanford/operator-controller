@@ -12,8 +12,11 @@ import (
 
 	"github.com/containerd/containerd/archive"
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/pkg/blobinfocache/none"
+	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
+	ocispecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	errorutil "github.com/operator-framework/operator-controller/internal/util/error"
@@ -24,16 +27,10 @@ const ConfigDirLabel = "operators.operatorframework.io.index.configs.v1"
 
 func CatalogCache(basePath string) Cache {
 	return &diskCache{
-		BasePath: basePath,
-		FilterFunc: func(ctx context.Context, _ string, srcRef reference.Named, _ reference.Canonical, img types.Image, _ types.ImageSource) (archive.Filter, error) {
-			cfg, err := img.OCIConfig(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing image config: %w", err)
-			}
-
+		basePath: basePath,
+		filterFunc: func(ctx context.Context, srcRef reference.Named, image ocispecv1.Image) (archive.Filter, error) {
 			_, specIsCanonical := srcRef.(reference.Canonical)
-
-			dirToUnpack, ok := cfg.Config.Labels[ConfigDirLabel]
+			dirToUnpack, ok := image.Config.Labels[ConfigDirLabel]
 			if !ok {
 				// If the spec is a tagged ref, retries could end up resolving a new digest, where the label
 				// might show up. If the spec is canonical, no amount of retries will make the label appear.
@@ -41,9 +38,9 @@ func CatalogCache(basePath string) Cache {
 				return nil, errorutil.WrapTerminal(fmt.Errorf("catalog image is missing the required label %q", ConfigDirLabel), specIsCanonical)
 			}
 
-			return AllFilters(
-				OnlyPath(dirToUnpack),
-				ForceOwnershipRWX(),
+			return allFilters(
+				onlyPath(dirToUnpack),
+				forceOwnershipRWX(),
 			), nil
 		},
 	}
@@ -51,16 +48,16 @@ func CatalogCache(basePath string) Cache {
 
 func BundleCache(basePath string) Cache {
 	return &diskCache{
-		BasePath: basePath,
-		FilterFunc: func(_ context.Context, _ string, _ reference.Named, _ reference.Canonical, _ types.Image, _ types.ImageSource) (archive.Filter, error) {
-			return ForceOwnershipRWX(), nil
+		basePath: basePath,
+		filterFunc: func(_ context.Context, _ reference.Named, _ ocispecv1.Image) (archive.Filter, error) {
+			return forceOwnershipRWX(), nil
 		},
 	}
 }
 
 type diskCache struct {
-	BasePath   string
-	FilterFunc func(context.Context, string, reference.Named, reference.Canonical, types.Image, types.ImageSource) (archive.Filter, error)
+	basePath   string
+	filterFunc func(context.Context, reference.Named, ocispecv1.Image) (archive.Filter, error)
 }
 
 func (a *diskCache) Fetch(ctx context.Context, id string, canonicalRef reference.Canonical) (fs.FS, time.Time, error) {
@@ -81,7 +78,7 @@ func (a *diskCache) Fetch(ctx context.Context, id string, canonicalRef reference
 }
 
 func (a *diskCache) idPath(id string) string {
-	return filepath.Join(a.BasePath, id)
+	return filepath.Join(a.basePath, id)
 }
 
 func (a *diskCache) unpackPath(id string, digest digest.Digest) string {
@@ -90,15 +87,21 @@ func (a *diskCache) unpackPath(id string, digest digest.Digest) string {
 
 func (a *diskCache) Store(ctx context.Context, id string, srcRef reference.Named, canonicalRef reference.Canonical, img types.Image, imgSrc types.ImageSource) (fs.FS, time.Time, error) {
 	var filter archive.Filter
-	if a.FilterFunc != nil {
+	if a.filterFunc != nil {
 		var err error
-		filter, err = a.FilterFunc(ctx, id, srcRef, canonicalRef, img, imgSrc)
+
+		imgCfg, err := img.OCIConfig(ctx)
+		if err != nil {
+			return nil, time.Time{}, fmt.Errorf("error parsing image config: %w", err)
+		}
+
+		filter, err = a.filterFunc(ctx, srcRef, *imgCfg)
 		if err != nil {
 			return nil, time.Time{}, err
 		}
 	}
 
-	modTime, err := ApplyLayersToDisk(ctx, a.unpackPath(id, canonicalRef.Digest()), img, imgSrc, filter)
+	modTime, err := a.applyLayersToDisk(ctx, id, canonicalRef, img, imgSrc, filter)
 	if err != nil {
 		return nil, time.Time{}, err
 	}
@@ -126,4 +129,50 @@ func (a *diskCache) GarbageCollect(_ context.Context, id string, keep reference.
 		}
 	}
 	return nil
+}
+
+// applyLayersToDisk writes the layers from img and imgSrc to disk using the provided filter.
+// The destination directory will be created, if necessary. If dest is already present, its
+// contents will be deleted. If img and imgSrc do not represent the same image, an error will
+// be returned due to a mismatch in the expected layers. Once complete, the dest and its contents
+// are marked as read-only to provide a safeguard against unintended changes.
+func (a *diskCache) applyLayersToDisk(ctx context.Context, id string, canonicalRef reference.Canonical, img types.Image, imgSrc types.ImageSource, filter archive.Filter) (time.Time, error) {
+	var applyOpts []archive.ApplyOpt
+	if filter != nil {
+		applyOpts = append(applyOpts, archive.WithFilter(filter))
+	}
+
+	dest := a.unpackPath(id, canonicalRef.Digest())
+	if err := fsutil.EnsureEmptyDirectory(dest, 0700); err != nil {
+		return time.Time{}, fmt.Errorf("error ensuring empty unpack directory: %w", err)
+	}
+	l := log.FromContext(ctx)
+	l.Info("unpacking image", "path", dest)
+	for i, layerInfo := range img.LayerInfos() {
+		if err := func() error {
+			layerReader, _, err := imgSrc.GetBlob(ctx, layerInfo, none.NoCache)
+			if err != nil {
+				return fmt.Errorf("error getting blob for layer[%d]: %w", i, err)
+			}
+			defer layerReader.Close()
+
+			decompressed, _, err := compression.AutoDecompress(layerReader)
+			if err != nil {
+				return fmt.Errorf("auto-decompress failed: %w", err)
+			}
+			defer decompressed.Close()
+
+			if _, err := archive.Apply(ctx, dest, decompressed, applyOpts...); err != nil {
+				return fmt.Errorf("error applying layer[%d]: %w", i, err)
+			}
+			l.Info("applied layer", "layer", i)
+			return nil
+		}(); err != nil {
+			return time.Time{}, errors.Join(err, fsutil.DeleteReadOnlyRecursive(dest))
+		}
+	}
+	if err := fsutil.SetReadOnlyRecursive(dest); err != nil {
+		return time.Time{}, fmt.Errorf("error making unpack directory read-only: %w", err)
+	}
+	return fsutil.GetDirectoryModTime(dest)
 }

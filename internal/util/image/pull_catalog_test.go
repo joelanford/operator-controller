@@ -1,4 +1,4 @@
-package source_test
+package image
 
 import (
 	"bytes"
@@ -27,8 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	catalogdv1 "github.com/operator-framework/operator-controller/catalogd/api/v1"
-	"github.com/operator-framework/operator-controller/catalogd/internal/source"
-	imageutil "github.com/operator-framework/operator-controller/internal/util/image"
 )
 
 func TestImageRegistry(t *testing.T) {
@@ -213,7 +211,7 @@ func TestImageRegistry(t *testing.T) {
 				}
 				img, err = mutate.Config(img, v1.Config{
 					Labels: map[string]string{
-						imageutil.ConfigDirLabel: "/configs",
+						ConfigDirLabel: "/configs",
 					},
 				})
 				if err != nil {
@@ -246,7 +244,7 @@ func TestImageRegistry(t *testing.T) {
 				}
 				img, err = mutate.Config(img, v1.Config{
 					Labels: map[string]string{
-						imageutil.ConfigDirLabel: "/configs",
+						ConfigDirLabel: "/configs",
 					},
 				})
 				if err != nil {
@@ -279,7 +277,7 @@ func TestImageRegistry(t *testing.T) {
 				}
 				img, err = mutate.Config(img, v1.Config{
 					Labels: map[string]string{
-						imageutil.ConfigDirLabel: "/configs",
+						ConfigDirLabel: "/configs",
 					},
 				})
 				if err != nil {
@@ -295,15 +293,13 @@ func TestImageRegistry(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			t.Cleanup(cancel)
 			testCache := t.TempDir()
-			imgReg := &source.ContainersImageRegistry{
-				Cache: imageutil.CatalogCache(testCache),
-				Puller: &imageutil.ContainersImagePuller{
-					SourceCtxFunc: func(context.Context) (*types.SystemContext, error) {
-						return &types.SystemContext{
-							OCIInsecureSkipTLSVerify:    true,
-							DockerInsecureSkipTLSVerify: types.OptionalBoolTrue,
-						}, nil
-					},
+			imageCache := CatalogCache(testCache)
+			imagePuller := &ContainersImagePuller{
+				SourceCtxFunc: func(context.Context) (*types.SystemContext, error) {
+					return &types.SystemContext{
+						OCIInsecureSkipTLSVerify:    true,
+						DockerInsecureSkipTLSVerify: types.OptionalBoolTrue,
+					}, nil
 				},
 			}
 
@@ -367,11 +363,10 @@ func TestImageRegistry(t *testing.T) {
 				tt.catalog.Spec.Source.Image.Ref = imgName.Name()
 			}
 
-			rs, err := imgReg.Unpack(ctx, tt.catalog.Name, tt.catalog.Spec.Source.Image.Ref)
+			_, canonicalRef, unpackTime, err := imagePuller.Pull(ctx, tt.catalog.Name, tt.catalog.Spec.Source.Image.Ref, imageCache)
 			if !tt.wantErr {
 				require.NoError(t, err)
-				assert.Equal(t, fmt.Sprintf("%s@sha256:%s", imgName.Context().Name(), digest.Hex), rs.ResolvedSource.Image.Ref)
-				assert.Equal(t, source.StateUnpacked, rs.State)
+				assert.Equal(t, fmt.Sprintf("%s@sha256:%s", imgName.Context().Name(), digest.Hex), canonicalRef.String())
 
 				unpackDir := filepath.Join(testCache, tt.catalog.Name, digest.String())
 				assert.DirExists(t, unpackDir)
@@ -384,15 +379,13 @@ func TestImageRegistry(t *testing.T) {
 				// If the digest should already exist check that we actually hit it
 				if tt.digestAlreadyExists {
 					assert.Contains(t, buf.String(), "image already unpacked")
-					assert.Equal(t, rs.UnpackTime, unpackDirStat.ModTime().Truncate(time.Second))
+					assert.Equal(t, unpackTime, unpackDirStat.ModTime())
 				} else if tt.oldDigestExists {
 					assert.NotContains(t, buf.String(), "image already unpacked")
-					assert.NotEqual(t, rs.UnpackTime, oldDigestModTime)
+					assert.NotEqual(t, unpackTime, oldDigestModTime)
 					assert.NoDirExists(t, oldDigestDir)
 				} else {
-					require.NotNil(t, rs.UnpackTime)
-					require.NotNil(t, rs.ResolvedSource.Image)
-					assert.False(t, rs.UnpackTime.IsZero())
+					assert.Falsef(t, unpackTime.IsZero(), "expected non-zero unpackTime")
 				}
 			} else {
 				require.Error(t, err)
@@ -400,8 +393,8 @@ func TestImageRegistry(t *testing.T) {
 				assert.Equal(t, tt.terminal, isTerminal, "expected terminal %v, got %v", tt.terminal, isTerminal)
 			}
 
-			assert.NoError(t, imgReg.Cleanup(ctx, tt.catalog.Name))
-			assert.NoError(t, imgReg.Cleanup(ctx, tt.catalog.Name), "cleanup should ignore missing files")
+			assert.NoError(t, imageCache.DeleteID(ctx, tt.catalog.Name))
+			assert.NoError(t, imageCache.DeleteID(ctx, tt.catalog.Name), "DeleteID should ignore missing files")
 		})
 	}
 }
@@ -417,12 +410,10 @@ func TestImageRegistryMissingLabelConsistentFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	testCache := t.TempDir()
-	imgReg := &source.ContainersImageRegistry{
-		Cache: imageutil.CatalogCache(testCache),
-		Puller: &imageutil.ContainersImagePuller{
-			SourceCtxFunc: func(context.Context) (*types.SystemContext, error) {
-				return &types.SystemContext{}, nil
-			},
+	imageCache := CatalogCache(testCache)
+	imagePuller := &ContainersImagePuller{
+		SourceCtxFunc: func(context.Context) (*types.SystemContext, error) {
+			return &types.SystemContext{}, nil
 		},
 	}
 
@@ -458,7 +449,7 @@ func TestImageRegistryMissingLabelConsistentFailure(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		_, err = imgReg.Unpack(ctx, catalog.Name, catalog.Spec.Source.Image.Ref)
+		_, _, _, err = imagePuller.Pull(ctx, catalog.Name, catalog.Spec.Source.Image.Ref, imageCache)
 		require.Error(t, err, "unpack run ", i)
 	}
 }
