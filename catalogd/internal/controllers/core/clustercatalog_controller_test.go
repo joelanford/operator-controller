@@ -723,7 +723,7 @@ func TestPollingRequeue(t *testing.T) {
 	for name, tc := range map[string]struct {
 		catalog              *catalogdv1.ClusterCatalog
 		expectedRequeueAfter time.Duration
-		lastPollTime         metav1.Time
+		lastPollTime         time.Time
 	}{
 		"ClusterCatalog with tag based image ref without any poll interval specified, requeueAfter set to 0, ie polling disabled": {
 			catalog: &catalogdv1.ClusterCatalog{
@@ -741,9 +741,9 @@ func TestPollingRequeue(t *testing.T) {
 				},
 			},
 			expectedRequeueAfter: time.Second * 0,
-			lastPollTime:         metav1.Now(),
+			lastPollTime:         time.Now(),
 		},
-		"ClusterCatalog with tag based image ref with poll interval specified, requeueAfter set to wait.jitter(pollInterval)": {
+		"ClusterCatalog with tag based image ref with poll interval specified, just polled, requeueAfter set to wait.jitter(pollInterval)": {
 			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "test-catalog",
@@ -760,18 +760,56 @@ func TestPollingRequeue(t *testing.T) {
 				},
 			},
 			expectedRequeueAfter: time.Minute * 5,
-			lastPollTime:         metav1.Now(),
+			lastPollTime:         time.Now(),
+		},
+		"ClusterCatalog with tag based image ref with poll interval specified, last polled 2m ago, requeueAfter set to wait.jitter(pollInterval-2)": {
+			catalog: &catalogdv1.ClusterCatalog{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test-catalog",
+					Finalizers: []string{fbcDeletionFinalizer},
+				},
+				Spec: catalogdv1.ClusterCatalogSpec{
+					Source: catalogdv1.CatalogSource{
+						Type: catalogdv1.SourceTypeImage,
+						Image: &catalogdv1.ImageSource{
+							Ref:                 "my.org/someimage:latest",
+							PollIntervalMinutes: ptr.To(5),
+						},
+					},
+				},
+			},
+			expectedRequeueAfter: time.Minute * 3,
+			lastPollTime:         time.Now().Add(-2 * time.Minute),
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
+			ref := mustRef(t, "my.org/someimage@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+			tc.catalog.Status = catalogdv1.ClusterCatalogStatus{
+				Conditions: []metav1.Condition{
+					{Type: catalogdv1.TypeServing, Status: metav1.ConditionTrue, Reason: catalogdv1.ReasonAvailable, Message: "Serving desired content from resolved source", LastTransitionTime: metav1.Now()},
+					{Type: catalogdv1.TypeProgressing, Status: metav1.ConditionTrue, Reason: catalogdv1.ReasonSucceeded, Message: "Successfully unpacked and stored content from resolved source", LastTransitionTime: metav1.Now()},
+				},
+				ResolvedSource: &catalogdv1.ResolvedCatalogSource{
+					Type:  catalogdv1.SourceTypeImage,
+					Image: &catalogdv1.ResolvedImageSource{Ref: ref.String()},
+				},
+				URLs:         &catalogdv1.ClusterCatalogURLs{Base: "URL"},
+				LastUnpacked: ptr.To(metav1.NewTime(time.Now().Truncate(time.Second))),
+			}
 			reconciler := &ClusterCatalogReconciler{
 				Client: nil,
 				ImagePuller: &imageutil.MockPuller{
 					ImageFS: &fstest.MapFS{},
-					Ref:     mustRef(t, "my.org/someimage@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+					Ref:     ref,
 				},
-				Storage:        &MockStore{},
-				storedCatalogs: map[string]storedCatalogData{},
+				Storage: &MockStore{},
+				storedCatalogs: map[string]storedCatalogData{
+					tc.catalog.Name: {
+						ref:                ref,
+						lastSuccessfulPoll: tc.lastPollTime,
+						lastUnpack:         tc.catalog.Status.LastUnpacked.Time,
+					},
+				},
 			}
 			require.NoError(t, reconciler.setupFinalizers())
 			res, _ := reconciler.reconcile(context.Background(), tc.catalog)
@@ -785,6 +823,8 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 	newDigest := "f42337e7b85a46d83c94694638e2312e10ca16a03542399a65ba783c94a32b63"
 
 	successfulObservedGeneration := int64(2)
+	successfulRef := mustRef(t, "my.org/someimage@sha256:"+oldDigest)
+	successfulUnpackTime := time.Time{}
 	successfulUnpackStatus := func(mods ...func(status *catalogdv1.ClusterCatalogStatus)) catalogdv1.ClusterCatalogStatus {
 		s := catalogdv1.ClusterCatalogStatus{
 			URLs: &catalogdv1.ClusterCatalogURLs{Base: "URL"},
@@ -807,10 +847,10 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 			ResolvedSource: &catalogdv1.ResolvedCatalogSource{
 				Type: catalogdv1.SourceTypeImage,
 				Image: &catalogdv1.ResolvedImageSource{
-					Ref: "my.org/someimage@sha256:" + oldDigest,
+					Ref: successfulRef.String(),
 				},
 			},
-			LastUnpacked: &metav1.Time{},
+			LastUnpacked: ptr.To(metav1.NewTime(successfulUnpackTime)),
 		}
 		for _, mod := range mods {
 			mod(&s)
@@ -821,8 +861,8 @@ func TestPollingReconcilerUnpack(t *testing.T) {
 		return map[string]storedCatalogData{
 			"test-catalog": {
 				observedGeneration: successfulObservedGeneration,
-				ref:                mustRef(t, "my.org/someimage@sha256:"+oldDigest),
-				lastUnpack:         time.Time{},
+				ref:                successfulRef,
+				lastUnpack:         successfulUnpackTime,
 				lastSuccessfulPoll: lastPoll,
 			},
 		}
