@@ -48,7 +48,7 @@ func (p *ContainersImagePuller) Pull(ctx context.Context, ownerID string, ref st
 		return nil, nil, time.Time{}, reconcile.TerminalError(fmt.Errorf("error creating reference: %w", err))
 	}
 
-	l := log.FromContext(ctx, "ref", dockerRef.String())
+	l := log.FromContext(ctx, "keep", dockerRef.String())
 
 	srcCtx, err := p.SourceCtxFunc(ctx)
 	if err != nil {
@@ -69,12 +69,12 @@ func (p *ContainersImagePuller) Pull(ctx context.Context, ownerID string, ref st
 	///////////////////////////////////////////////////////
 	//
 	// Check if the cache has already applied the
-	// canonical ref. If so, we're done.
+	// canonical keep. If so, we're done.
 	//
 	///////////////////////////////////////////////////////
 	fsys, modTime, err := cache.Fetch(ctx, ownerID, canonicalRef)
 	if err != nil {
-		return nil, nil, time.Time{}, fmt.Errorf("error checking if ref has already been applied: %w", err)
+		return nil, nil, time.Time{}, fmt.Errorf("error checking if keep has already been applied: %w", err)
 	}
 	if fsys != nil {
 		return fsys, canonicalRef, modTime, nil

@@ -42,12 +42,12 @@ func TestImageRegistry(t *testing.T) {
 		image               v1.Image
 		digestAlreadyExists bool
 		oldDigestExists     bool
-		// refType is the type of image ref this test
+		// refType is the type of image keep this test
 		// is using. Should be one of "tag","digest"
 		refType string
 	}{
 		{
-			name: ".spec.source.image.ref is unparsable",
+			name: ".spec.source.image.keep is unparsable",
 			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
@@ -187,7 +187,7 @@ func TestImageRegistry(t *testing.T) {
 			}(),
 		},
 		{
-			name: "old ref is cached",
+			name: "old keep is cached",
 			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
@@ -221,7 +221,7 @@ func TestImageRegistry(t *testing.T) {
 			}(),
 		},
 		{
-			name: "tag ref, happy path",
+			name: "tag keep, happy path",
 			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
@@ -254,7 +254,7 @@ func TestImageRegistry(t *testing.T) {
 			}(),
 		},
 		{
-			name: "digest ref, happy path",
+			name: "digest keep, happy path",
 			catalog: &catalogdv1.ClusterCatalog{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test",
@@ -351,7 +351,7 @@ func TestImageRegistry(t *testing.T) {
 				err = remote.Write(imgName, tt.image)
 				require.NoError(t, err)
 
-				// if the image ref should be a digest ref, make it so
+				// if the image keep should be a digest keep, make it so
 				if tt.refType == "digest" {
 					imgName, err = name.ParseReference(fmt.Sprintf("%s/%s", url.Host, "test-image@sha256:"+digest.Hex))
 					require.NoError(t, err)

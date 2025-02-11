@@ -202,7 +202,7 @@ func TestUnpackInvalidImageRef(t *testing.T) {
 	}
 
 	bundleID := "test-bundle"
-	bundleRef := "invalid image ref"
+	bundleRef := "invalid image keep"
 
 	// Attempt to unpack
 	_, _, _, err := imagePuller.Pull(context.Background(), bundleID, bundleRef, imageCache)

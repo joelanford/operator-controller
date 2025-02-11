@@ -44,7 +44,7 @@ func CatalogCache(basePath string) Cache {
 			_, specIsCanonical := srcRef.(reference.Canonical)
 			dirToUnpack, ok := image.Config.Labels[ConfigDirLabel]
 			if !ok {
-				// If the spec is a tagged ref, retries could end up resolving a new digest, where the label
+				// If the spec is a tagged keep, retries could end up resolving a new digest, where the label
 				// might show up. If the spec is canonical, no amount of retries will make the label appear.
 				// Therefore, we treat the error as terminal if the reference from the spec is canonical.
 				return nil, errorutil.WrapTerminal(fmt.Errorf("catalog image is missing the required label %q", ConfigDirLabel), specIsCanonical)
@@ -111,25 +111,29 @@ func (a *diskCache) Store(ctx context.Context, ownerID string, srcRef reference.
 	if err := fsutil.EnsureEmptyDirectory(dest, 0700); err != nil {
 		return nil, time.Time{}, fmt.Errorf("error ensuring empty unpack directory: %w", err)
 	}
-	modTime, err := func() (time.Time, error) {
+
+	if err := func() error {
 		l := log.FromContext(ctx)
 		l.Info("unpacking image", "path", dest)
 		for layer := range layers {
 			if layer.Err != nil {
-				return time.Time{}, fmt.Errorf("error reading layer[%d]: %w", layer.Index, layer.Err)
+				return fmt.Errorf("error reading layer[%d]: %w", layer.Index, layer.Err)
 			}
 			if _, err := archive.Apply(ctx, dest, layer.Reader, applyOpts...); err != nil {
-				return time.Time{}, fmt.Errorf("error applying layer[%d]: %w", layer.Index, err)
+				return fmt.Errorf("error applying layer[%d]: %w", layer.Index, err)
 			}
 			l.Info("applied layer", "layer", layer.Index)
 		}
 		if err := fsutil.SetReadOnlyRecursive(dest); err != nil {
-			return time.Time{}, fmt.Errorf("error making unpack directory read-only: %w", err)
+			return fmt.Errorf("error making unpack directory read-only: %w", err)
 		}
-		return fsutil.GetDirectoryModTime(dest)
-	}()
-	if err != nil {
+		return nil
+	}(); err != nil {
 		return nil, time.Time{}, errors.Join(err, fsutil.DeleteReadOnlyRecursive(dest))
+	}
+	modTime, err := fsutil.GetDirectoryModTime(dest)
+	if err != nil {
+		return nil, time.Time{}, fmt.Errorf("error getting mod time of unpack directory: %w", err)
 	}
 	return os.DirFS(dest), modTime, nil
 }
@@ -142,16 +146,30 @@ func (a *diskCache) GarbageCollect(_ context.Context, ownerID string, keep refer
 	ownerIDPath := a.ownerIDPath(ownerID)
 	dirEntries, err := os.ReadDir(ownerIDPath)
 	if err != nil {
-		return fmt.Errorf("error reading image directories: %w", err)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("error reading owner directory: %w", err)
 	}
 
+	foundKeep := false
 	dirEntries = slices.DeleteFunc(dirEntries, func(entry os.DirEntry) bool {
-		return entry.Name() == keep.Digest().String()
+		found := entry.Name() == keep.Digest().String()
+		if found {
+			foundKeep = true
+		}
+		return found
 	})
 
 	for _, dirEntry := range dirEntries {
 		if err := fsutil.DeleteReadOnlyRecursive(filepath.Join(ownerIDPath, dirEntry.Name())); err != nil {
 			return fmt.Errorf("error removing entry %s: %w", dirEntry.Name(), err)
+		}
+	}
+
+	if !foundKeep {
+		if err := fsutil.DeleteReadOnlyRecursive(ownerIDPath); err != nil {
+			return fmt.Errorf("error deleting unused owner data: %w", err)
 		}
 	}
 	return nil

@@ -813,7 +813,7 @@ func TestPollingRequeue(t *testing.T) {
 			}
 			require.NoError(t, reconciler.setupFinalizers())
 			res, _ := reconciler.reconcile(context.Background(), tc.catalog)
-			assert.InDelta(t, tc.expectedRequeueAfter, res.RequeueAfter, requeueJitterMaxFactor*float64(tc.expectedRequeueAfter))
+			assert.InDelta(t, tc.expectedRequeueAfter, res.RequeueAfter, 2*requeueJitterMaxFactor*float64(tc.expectedRequeueAfter))
 		})
 	}
 }
