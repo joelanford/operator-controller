@@ -9,23 +9,16 @@ export ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 GOLANG_VERSION := $(shell sed -En 's/^go (.*)$$/\1/p' "go.mod")
 # Image URL to use all building/pushing image targets
-ifeq ($(origin IMAGE_REPO), undefined)
-IMAGE_REPO := quay.io/operator-framework/operator-controller
+ifeq ($(origin IMAGE_ORG), undefined)
+IMAGE_ORG := quay.io/operator-framework
 endif
-export IMAGE_REPO
-
-ifeq ($(origin CATALOG_IMAGE_REPO), undefined)
-CATALOG_IMAGE_REPO := quay.io/operator-framework/catalogd
-endif
-export CATALOG_IMAGE_REPO
 
 ifeq ($(origin IMAGE_TAG), undefined)
 IMAGE_TAG := devel
 endif
-export IMAGE_TAG
 
-IMG := $(IMAGE_REPO):$(IMAGE_TAG)
-CATALOGD_IMG := $(CATALOG_IMAGE_REPO):$(IMAGE_TAG)
+export OPCON_IMG := $(IMAGE_ORG)/operator-controller:$(IMAGE_TAG)
+export CATALOGD_IMG := $(IMAGE_ORG)/catalogd:$(IMAGE_TAG)
 
 # Define dependency versions (use go.mod if we also use Go code from dependency)
 export CERT_MGR_VERSION := v1.15.3
@@ -276,8 +269,8 @@ e2e-coverage:
 
 .PHONY: kind-load
 kind-load: $(KIND) #EXHELP Loads the currently constructed images into the KIND cluster.
-	$(CONTAINER_RUNTIME) save $(IMG) | $(KIND) load image-archive /dev/stdin --name $(KIND_CLUSTER_NAME)
-	IMAGE_REPO=$(CATALOG_IMAGE_REPO) KIND_CLUSTER_NAME=$(KIND_CLUSTER_NAME) $(MAKE) -C catalogd kind-load
+	$(CONTAINER_RUNTIME) save $(OPCON_IMG) | $(KIND) load image-archive /dev/stdin --name $(KIND_CLUSTER_NAME)
+	$(CONTAINER_RUNTIME) save $(CATALOGD_IMG) | $(KIND) load image-archive /dev/stdin --name $(KIND_CLUSTER_NAME)
 
 .PHONY: kind-deploy
 kind-deploy: export MANIFEST := ./operator-controller.yaml
@@ -317,10 +310,11 @@ export GO_BUILD_FLAGS :=
 export GO_BUILD_LDFLAGS := -s -w \
     -X '$(VERSION_PATH).version=$(VERSION)' \
 
-BINARIES=operator-controller
+BINARIES=cmd/operator-controller catalogd/cmd/catalogd
 
+.PHONY: $(BINARIES)
 $(BINARIES):
-	go build $(GO_BUILD_FLAGS) -tags '$(GO_BUILD_TAGS)' -ldflags '$(GO_BUILD_LDFLAGS)' -gcflags '$(GO_BUILD_GCFLAGS)' -asmflags '$(GO_BUILD_ASMFLAGS)' -o $(BUILDBIN)/$@ ./cmd/$@
+	go build $(GO_BUILD_FLAGS) -tags '$(GO_BUILD_TAGS)' -ldflags '$(GO_BUILD_LDFLAGS)' -gcflags '$(GO_BUILD_GCFLAGS)' -asmflags '$(GO_BUILD_ASMFLAGS)' -o $(BUILDBIN)/$(shell basename $@) ./$@
 
 .PHONY: build-deps
 build-deps: manifests generate fmt
@@ -347,8 +341,8 @@ wait:
 
 .PHONY: docker-build
 docker-build: build-linux  #EXHELP Build docker image for operator-controller and catalog with GOOS=linux and local GOARCH.
-	$(CONTAINER_RUNTIME) build -t $(IMG) -f Dockerfile ./bin/linux
-	IMAGE_REPO=$(CATALOG_IMAGE_REPO) $(MAKE) -C catalogd build-container
+	$(CONTAINER_RUNTIME) build -t $(OPCON_IMG) -f Dockerfile.operator-controller ./bin/linux
+	$(CONTAINER_RUNTIME) build -t $(CATALOGD_IMG) -f Dockerfile.catalogd ./bin/linux
 
 #SECTION Release
 ifeq ($(origin ENABLE_RELEASE_PIPELINE), undefined)
