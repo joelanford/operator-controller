@@ -47,6 +47,8 @@ spec:
         - --leader-elect
         - --metrics-bind-address=:7443
         - --external-address=catalogd-service.olmv1-system.svc
+        - --feature-gates=APIV1MetasHandler=true
+        - --global-pull-secret=olmv1-system/pull-secret
         image: controller:latest
         name: manager
         volumeMounts:

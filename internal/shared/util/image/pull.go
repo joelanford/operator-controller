@@ -82,6 +82,7 @@ func (p *ContainersImagePuller) pull(ctx context.Context, ownerID string, docker
 	if err != nil {
 		return nil, nil, time.Time{}, err
 	}
+	incrementResolveDigestCount(ownerID)
 
 	l = l.WithValues("digest", canonicalRef.Digest().String())
 	ctx = log.IntoContext(ctx, l)
@@ -157,6 +158,7 @@ func (p *ContainersImagePuller) pull(ctx context.Context, ownerID string, docker
 	}); err != nil {
 		return nil, nil, time.Time{}, fmt.Errorf("error copying image: %w", err)
 	}
+	incrementPullImageCount(ownerID)
 	l.Info("pulled image")
 
 	//////////////////////////////////////////////////////
