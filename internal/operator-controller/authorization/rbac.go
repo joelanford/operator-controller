@@ -31,7 +31,7 @@ import (
 )
 
 type PreAuthorizer interface {
-	PreAuthorize(ctx context.Context, manifestManager user.Info, manifestReader io.Reader) (map[string][]rbacv1.PolicyRule, error)
+	PreAuthorize(context.Context, user.Info, io.Reader, ...authorizer.AttributesRecord) (map[string][]rbacv1.PolicyRule, error)
 }
 
 var (
@@ -53,12 +53,13 @@ func NewRBACPreAuthorizer(cl client.Client) PreAuthorizer {
 	}
 }
 
-func (a *rbacPreAuthorizer) PreAuthorize(ctx context.Context, manifestManager user.Info, manifestReader io.Reader) (map[string][]rbacv1.PolicyRule, error) {
+func (a *rbacPreAuthorizer) PreAuthorize(ctx context.Context, manifestManager user.Info, manifestReader io.Reader, extraAttributesRecords ...authorizer.AttributesRecord) (map[string][]rbacv1.PolicyRule, error) {
 	dm, err := a.decodeManifest(manifestReader)
 	if err != nil {
 		return nil, err
 	}
 	attributesRecords := dm.asAuthorizationAttributesRecordsForUser(manifestManager)
+	attributesRecords = append(attributesRecords, extraAttributesRecords...)
 
 	var preAuthEvaluationErrors []error
 	missingRules, err := a.authorizeAttributesRecords(ctx, attributesRecords)

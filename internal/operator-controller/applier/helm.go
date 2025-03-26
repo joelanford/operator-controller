@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apiserver/pkg/authentication/user"
+	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -100,8 +101,17 @@ func (h *Helm) Apply(ctx context.Context, contentFS fs.FS, ext *ocv1.ClusterExte
 			return nil, "", fmt.Errorf("failed to get release state using client-only dry-run: %w", err)
 		}
 
-		ceServiceAccount := user.DefaultInfo{Name: fmt.Sprintf("system:serviceaccount:%s:%s", ext.Spec.Namespace, ext.Spec.ServiceAccount.Name)}
-		missingRules, err := h.PreAuthorizer.PreAuthorize(ctx, &ceServiceAccount, strings.NewReader(tmplRel.Manifest))
+		ceServiceAccount := &user.DefaultInfo{Name: fmt.Sprintf("system:serviceaccount:%s:%s", ext.Spec.Namespace, ext.Spec.ServiceAccount.Name)}
+		ceFinalizerRecord := authorizer.AttributesRecord{
+			User:            ceServiceAccount,
+			Name:            ext.GetName(),
+			APIGroup:        ext.GroupVersionKind().Group,
+			APIVersion:      ext.GroupVersionKind().Version,
+			Resource:        "clusterextensions/finalizers",
+			ResourceRequest: true,
+			Verb:            "update",
+		}
+		missingRules, err := h.PreAuthorizer.PreAuthorize(ctx, ceServiceAccount, strings.NewReader(tmplRel.Manifest), ceFinalizerRecord)
 
 		var preAuthErrors []error
 		ext.Status.Rules = nil
