@@ -340,9 +340,10 @@ func run(ctx context.Context) error {
 	}
 
 	localStorage = &storage.LocalDirV1{
-		RootDir:            storeDir,
-		RootURL:            baseStorageURL,
-		EnableMetasHandler: features.CatalogdFeatureGate.Enabled(features.APIV1MetasHandler),
+		RootDir:              storeDir,
+		RootURL:              baseStorageURL,
+		EnableMetasHandler:   features.CatalogdFeatureGate.Enabled(features.APIV1MetasHandler),
+		EnableConsoleHandler: true,
 	}
 
 	// Config for the catalogd web server

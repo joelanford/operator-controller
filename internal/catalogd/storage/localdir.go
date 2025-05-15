@@ -26,9 +26,10 @@ import (
 // done so that clients accessing the content stored in RootDir/<catalogName>.json1
 // have an atomic view of the content for a catalog.
 type LocalDirV1 struct {
-	RootDir            string
-	RootURL            *url.URL
-	EnableMetasHandler bool
+	RootDir              string
+	RootURL              *url.URL
+	EnableMetasHandler   bool
+	EnableConsoleHandler bool
 
 	m sync.RWMutex
 	// this singleflight Group is used in `getIndex()`` to handle concurrent HTTP requests
@@ -63,6 +64,9 @@ func (s *LocalDirV1) Store(ctx context.Context, catalog string, fsys fs.FS) erro
 	if s.EnableMetasHandler {
 		storeMetaFuncs = append(storeMetaFuncs, storeIndexData)
 	}
+	if s.EnableConsoleHandler {
+		storeMetaFuncs = append(storeMetaFuncs, storeConsoleData)
+	}
 
 	eg, egCtx := errgroup.WithContext(ctx)
 	metaChans := []chan *declcfg.Meta{}
@@ -75,26 +79,26 @@ func (s *LocalDirV1) Store(ctx context.Context, catalog string, fsys fs.FS) erro
 			return f(tmpCatalogDir, metaChans[i])
 		})
 	}
-	err = declcfg.WalkMetasFS(egCtx, fsys, func(path string, meta *declcfg.Meta, err error) error {
-		if err != nil {
-			return err
-		}
-		for _, ch := range metaChans {
-			select {
-			case ch <- meta:
-			case <-egCtx.Done():
-				return egCtx.Err()
+	eg.Go(func() error {
+		defer func() {
+			for _, ch := range metaChans {
+				close(ch)
 			}
-		}
-		return nil
-	}, declcfg.WithConcurrency(1))
-	for _, ch := range metaChans {
-		close(ch)
-	}
-	if err != nil {
-		return fmt.Errorf("error walking FBC root: %w", err)
-	}
-
+		}()
+		return declcfg.WalkMetasFS(egCtx, fsys, func(path string, meta *declcfg.Meta, err error) error {
+			if err != nil {
+				return err
+			}
+			for _, ch := range metaChans {
+				select {
+				case ch <- meta:
+				case <-egCtx.Done():
+					return egCtx.Err()
+				}
+			}
+			return nil
+		}, declcfg.WithConcurrency(1))
+	})
 	if err := eg.Wait(); err != nil {
 		return err
 	}
@@ -132,6 +136,15 @@ func (s *LocalDirV1) ContentExists(catalog string) bool {
 			return false
 		}
 		if !indexFileStat.Mode().IsRegular() {
+			return false
+		}
+	}
+	if s.EnableConsoleHandler {
+		catalogViewFileStat, err := os.Stat(catalogConsoleFilePath(s.catalogDir(catalog)))
+		if err != nil {
+			return false
+		}
+		if !catalogViewFileStat.Mode().IsRegular() {
 			return false
 		}
 	}
@@ -191,6 +204,10 @@ func (s *LocalDirV1) StorageServerHandler() http.Handler {
 	mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1", "all").Path, s.handleV1All)
 	if s.EnableMetasHandler {
 		mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1", "metas").Path, s.handleV1Metas)
+	}
+	if s.EnableConsoleHandler {
+		mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1", "console", "catalog.json").Path, s.handleV1ConsoleCatalog)
+		mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1", "console", "icons", "{iconFile}").Path, s.handleV1ConsoleIcon)
 	}
 	allowedMethodsHandler := func(next http.Handler, allowedMethods ...string) http.Handler {
 		allowedMethodSet := sets.New[string](allowedMethods...)
