@@ -19,13 +19,15 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/klog/v2"
+	crcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 
 	ocv1 "github.com/operator-framework/operator-controller/api/v1"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/authorization"
+	"github.com/operator-framework/operator-controller/internal/operator-controller/contentmanager"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/features"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/bundle/source"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/preflights/crdupgradesafety"
@@ -65,6 +67,9 @@ type Helm struct {
 	Preflights                 []Preflight
 	PreAuthorizer              authorization.PreAuthorizer
 	BundleToHelmChartConverter BundleToHelmChartConverter
+
+	Manager contentmanager.Manager
+	Watcher crcontroller.Controller
 }
 
 // shouldSkipPreflight is a helper to determine if the preflight check is CRDUpgradeSafety AND
@@ -121,10 +126,10 @@ func (h *Helm) runPreAuthorizationChecks(ctx context.Context, ext *ocv1.ClusterE
 	return nil
 }
 
-func (h *Helm) Apply(ctx context.Context, contentFS fs.FS, ext *ocv1.ClusterExtension, objectLabels map[string]string, storageLabels map[string]string) ([]client.Object, string, error) {
+func (h *Helm) Apply(ctx context.Context, contentFS fs.FS, ext *ocv1.ClusterExtension, objectLabels map[string]string, storageLabels map[string]string) (bool, string, error) {
 	chrt, err := h.buildHelmChart(contentFS, ext)
 	if err != nil {
-		return nil, "", err
+		return false, "", err
 	}
 	values := chartutil.Values{}
 
@@ -136,18 +141,18 @@ func (h *Helm) Apply(ctx context.Context, contentFS fs.FS, ext *ocv1.ClusterExte
 		err := h.runPreAuthorizationChecks(ctx, ext, chrt, values, post)
 		if err != nil {
 			// Return the pre-authorization error directly
-			return nil, "", err
+			return false, "", err
 		}
 	}
 
 	ac, err := h.ActionClientGetter.ActionClientFor(ctx, ext)
 	if err != nil {
-		return nil, "", err
+		return false, "", err
 	}
 
 	rel, desiredRel, state, err := h.getReleaseState(ac, ext, chrt, values, post)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to get release state using server-side dry-run: %w", err)
+		return false, "", fmt.Errorf("failed to get release state using server-side dry-run: %w", err)
 	}
 
 	for _, preflight := range h.Preflights {
@@ -158,12 +163,12 @@ func (h *Helm) Apply(ctx context.Context, contentFS fs.FS, ext *ocv1.ClusterExte
 		case StateNeedsInstall:
 			err := preflight.Install(ctx, desiredRel)
 			if err != nil {
-				return nil, state, err
+				return false, "", err
 			}
 		case StateNeedsUpgrade:
 			err := preflight.Upgrade(ctx, desiredRel)
 			if err != nil {
-				return nil, state, err
+				return false, "", err
 			}
 		}
 	}
@@ -176,7 +181,7 @@ func (h *Helm) Apply(ctx context.Context, contentFS fs.FS, ext *ocv1.ClusterExte
 			return nil
 		}, helmclient.AppendInstallPostRenderer(post))
 		if err != nil {
-			return nil, state, err
+			return false, "", err
 		}
 	case StateNeedsUpgrade:
 		rel, err = ac.Upgrade(ext.GetName(), ext.Spec.Namespace, chrt, values, func(upgrade *action.Upgrade) error {
@@ -185,22 +190,31 @@ func (h *Helm) Apply(ctx context.Context, contentFS fs.FS, ext *ocv1.ClusterExte
 			return nil
 		}, helmclient.AppendUpgradePostRenderer(post))
 		if err != nil {
-			return nil, state, err
+			return false, "", err
 		}
 	case StateUnchanged:
 		if err := ac.Reconcile(rel); err != nil {
-			return nil, state, err
+			return false, "", err
 		}
 	default:
-		return nil, state, fmt.Errorf("unexpected release state %q", state)
+		return false, "", fmt.Errorf("unexpected release state %q", state)
 	}
 
 	relObjects, err := util.ManifestObjects(strings.NewReader(rel.Manifest), fmt.Sprintf("%s-release-manifest", rel.Name))
 	if err != nil {
-		return nil, state, err
+		return true, "", err
+	}
+	klog.FromContext(ctx).Info("watching managed objects")
+	cache, err := h.Manager.Get(ctx, ext)
+	if err != nil {
+		return true, "", err
 	}
 
-	return relObjects, state, nil
+	if err := cache.Watch(ctx, h.Watcher, relObjects...); err != nil {
+		return true, "", err
+	}
+
+	return true, "", nil
 }
 
 func (h *Helm) buildHelmChart(bundleFS fs.FS, ext *ocv1.ClusterExtension) (*chart.Chart, error) {
