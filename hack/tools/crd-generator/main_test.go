@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
 )
 
@@ -74,31 +76,16 @@ func TestTags(t *testing.T) {
 }
 
 func compareFiles(t *testing.T, file1, file2 string) {
-	f1, err := os.Open(file1)
+	f1, err := os.ReadFile(file1)
 	require.NoError(t, err)
-	defer func() {
-		_ = f1.Close()
-	}()
 
-	f2, err := os.Open(file2)
+	f2, err := os.ReadFile(file2)
 	require.NoError(t, err)
-	defer func() {
-		_ = f2.Close()
-	}()
 
-	for {
-		b1 := make([]byte, 64000)
-		b2 := make([]byte, 64000)
-		n1, err1 := f1.Read(b1)
-		n2, err2 := f2.Read(b2)
+	// Make the multi-line string diff output pretty!
+	lineTransformer := cmpopts.AcyclicTransformer("SplitLines", func(s string) []string {
+		return strings.Split(s, "\n")
+	})
 
-		// Success if both have EOF at the same time
-		if err1 == io.EOF && err2 == io.EOF {
-			return
-		}
-		require.NoError(t, err1)
-		require.NoError(t, err2)
-		require.Equal(t, n1, n2)
-		require.Equal(t, b1, b2)
-	}
+	require.Empty(t, cmp.Diff(string(f1), string(f2), lineTransformer))
 }

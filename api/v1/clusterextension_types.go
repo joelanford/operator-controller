@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -87,6 +88,16 @@ type ClusterExtensionSpec struct {
 	// +kubebuilder:validation:Required
 	Source SourceConfig `json:"source"`
 
+	// config stores any custom configuration to be used when rendering
+	// manifests for this extension.
+	//
+	// config is optional. When not specified, the package manager will use
+	// the default configuration of the extension.
+	//
+	// +optional
+	// <opcon:experimental>
+	Config *ClusterExtensionConfig `json:"config,omitempty"`
+
 	// install is an optional field used to configure the installation options
 	// for the ClusterExtension such as the pre-flight check configuration.
 	//
@@ -120,6 +131,42 @@ type SourceConfig struct {
 	//
 	// +optional
 	Catalog *CatalogFilter `json:"catalog,omitempty"`
+}
+
+type ConfigSourceType string
+
+const (
+	ConfigSourceTypeInline ConfigSourceType = "Inline"
+)
+
+// ClusterExtensionConfig is a discriminated union of possible sources for configuration.
+// ClusterExtensionConfig contains the sourcing information for that configuration.
+// +union
+// +kubebuilder:validation:XValidation:rule="has(self.type) && self.type == 'Inline' ?has(self.inline) : !has(self.inline)",message="inline is required when type is Inline, and forbidden otherwise"
+type ClusterExtensionConfig struct {
+	// type is a reference to the type of source the configuration is sourced from.
+	// type is required.
+	//
+	// The only allowed value is "Inline".
+	//
+	// When set to "Inline", the configuration is sourced directly from the inlined content.
+	// When using an inline source, the inline field must be set and must be the only field defined for this type.
+	//
+	// +unionDiscriminator
+	// +kubebuilder:validation:Enum:="Inline";"Secret"
+	// +kubebuilder:validation:Required
+	Type ConfigSourceType `json:"type"`
+
+	// inline is a map of arbitrary key-value pairs.
+	//
+	// Inlined values are useful for small, simple configurations that do not
+	// include sensitive information.
+	//
+	//+kubebuilder:pruning:PreserveUnknownFields
+	//+kubebuilder:validation:Type=object
+	//+kubebuilder:validation:Schemaless
+	//+optional
+	Inline *apiextensionsv1.JSON `json:"inline,omitempty"`
 }
 
 // ClusterExtensionInstallConfig is a union which selects the clusterExtension installation config.

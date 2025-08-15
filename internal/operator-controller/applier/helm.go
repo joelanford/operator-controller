@@ -122,7 +122,7 @@ func (h *Helm) runPreAuthorizationChecks(ctx context.Context, ext *ocv1.ClusterE
 }
 
 func (h *Helm) Apply(ctx context.Context, contentFS fs.FS, ext *ocv1.ClusterExtension, objectLabels map[string]string, storageLabels map[string]string) ([]client.Object, string, error) {
-	chrt, err := h.buildHelmChart(contentFS, ext)
+	chrt, err := h.buildHelmChart(ctx, contentFS, ext)
 	if err != nil {
 		return nil, "", err
 	}
@@ -203,11 +203,12 @@ func (h *Helm) Apply(ctx context.Context, contentFS fs.FS, ext *ocv1.ClusterExte
 	return relObjects, state, nil
 }
 
-func (h *Helm) buildHelmChart(bundleFS fs.FS, ext *ocv1.ClusterExtension) (*chart.Chart, error) {
+func (h *Helm) buildHelmChart(ctx context.Context, bundleFS fs.FS, ext *ocv1.ClusterExtension) (*chart.Chart, error) {
 	if h.BundleToHelmChartConverter == nil {
 		return nil, errors.New("BundleToHelmChartConverter is nil")
 	}
-	watchNamespace, err := GetWatchNamespace(ext)
+
+	watchNamespace, err := GetWatchNamespace(ctx, ext)
 	if err != nil {
 		return nil, err
 	}

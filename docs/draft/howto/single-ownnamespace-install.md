@@ -56,9 +56,9 @@ kubectl rollout status -n olmv1-system deployment/operator-controller-controller
 ## Configuring the `ClusterExtension`
 
 A `ClusterExtension` can be configured to install bundle in `Single-` or `OwnNamespace` mode through the
-`olm.operatorframework.io/watch-namespace: <namespace>` annotation. The *installMode* is inferred in the following way:
+`spec.config.inline.watchNamespace: <namespace>` field. The *installMode* is inferred in the following way:
 
- - *AllNamespaces*: `<namespace>` is empty, or the annotation is not present
+ - *AllNamespaces*: `<namespace>` is empty, or the configuration is not present
  - *OwnNamespace*: `<namespace>` is the install namespace (i.e. `.spec.namespace`)
  - *SingleNamespace*: `<namespace>` not the install namespace
 
@@ -70,8 +70,6 @@ apiVersion: olm.operatorframework.io/v1
 kind: ClusterExtension
 metadata:
   name: argocd
-  annotations:
-    olm.operatorframework.io/watch-namespace: argocd-watch
 spec:
   namespace: argocd
   serviceAccount:
@@ -81,7 +79,11 @@ spec:
     catalog:
       packageName: argocd-operator
       version: 0.2.1 # Update to version 0.2.1
-    EOF
+  config:
+    type: Inline
+    inline:
+      watchNamespace: argocd-watch
+EOF
 ```
 
 ``` terminal title="OwnNamespace install mode example"
@@ -90,8 +92,6 @@ apiVersion: olm.operatorframework.io/v1
 kind: ClusterExtension
 metadata:
   name: argocd
-  annotations:
-    olm.operatorframework.io/watch-namespace: argocd
 spec:
   namespace: argocd
   serviceAccount:
@@ -101,5 +101,9 @@ spec:
     catalog:
       packageName: argocd-operator
       version: 0.2.1 # Update to version 0.2.1
-    EOF
+  config:
+    type: Inline
+    inline:
+      watchNamespace: argocd
+EOF
 ```
