@@ -1,0 +1,470 @@
+---
+schema: olm.package.v2
+package: advanced-cluster-management
+versionStreams:
+  - version: "2.6"
+    minimumUpdateVersion: 2.5.0
+    lifecycleDates:
+      fullSupport: "2022-08-29"
+      maintenance: "2023-09-11"
+      eol: "2023-12-13"
+    supportedPlatformVersions:
+      - "4.9"
+      - "4.10"
+      - "4.11"
+      - "4.12"
+  - version: "2.7"
+    minimumUpdateVersion: 2.6.0
+    lifecycleDates:
+      fullSupport: "2023-02-06"
+      maintenance: "2024-03-07"
+      eol: "2024-08-16"
+    supportedPlatformVersions:
+      - "4.10"
+      - "4.11"
+      - "4.12"
+      - "4.13"
+  - version: "2.8"
+    minimumUpdateVersion: 2.7.0
+    lifecycleDates:
+      fullSupport: "2023-06-08"
+      maintenance: "2024-07-09"
+      eol: "2024-12-10"
+    supportedPlatformVersions:
+      - "4.11"
+      - "4.12"
+      - "4.13"
+      - "4.14"
+  - version: "2.9"
+    minimumUpdateVersion: 2.8.0
+    lifecycleDates:
+      fullSupport: "2023-11-15"
+      maintenance: "2024-07-16"
+      eol: "2025-06-17"
+    supportedPlatformVersions:
+      - "4.12"
+      - "4.13"
+      - "4.14"
+      - "4.15"
+  - version: "2.10"
+    minimumUpdateVersion: 2.9.0
+    lifecycleDates:
+      fullSupport: "2024-03-21"
+      maintenance: "2024-10-22"
+      eol: "2025-09-23"
+    supportedPlatformVersions:
+      - "4.13"
+      - "4.14"
+      - "4.15"
+      - "4.16"
+  - version: "2.11"
+    minimumUpdateVersion: 2.10.0
+    lifecycleDates:
+      fullSupport: "2024-07-18"
+      maintenance: "2025-08-15"
+      extensions:
+        - "2026-01-16"
+        - "2026-06-12"
+      eol: "2027-06-11"
+    supportedPlatformVersions:
+      - "4.14"
+      - "4.15"
+      - "4.16"
+      - "4.17"
+  - version: "2.12"
+    minimumUpdateVersion: 2.11.0
+    lifecycleDates:
+      fullSupport: "2024-11-06"
+      maintenance: "2026-01-15"
+      eol: "2026-06-09"
+    supportedPlatformVersions:
+      - "4.15"
+      - "4.16"
+      - "4.17"
+      - "4.18"
+  - version: "2.13"
+    minimumUpdateVersion: 2.11.0
+    lifecycleDates:
+      fullSupport: "2025-03-20"
+      maintenance: "2026-04-17"
+      extensions:
+        - "2026-09-18"
+        - "2027-02-12"
+      eol: "2028-02-13"
+    supportedPlatformVersions:
+      - "4.16"
+      - "4.17"
+      - "4.18"
+      - "4.19"
+  - version: "2.14"
+    minimumUpdateVersion: 2.13.0
+    lifecycleDates:
+      fullSupport: "2025-08-01"
+      maintenance: "2026-10-02"
+      eol: "2027-02-24"
+    supportedPlatformVersions:
+      - "4.17"
+      - "4.18"
+      - "4.19"
+bundles:
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:ce699187f250b93976b8063228ac12d11c6c8f6baba69ba4ed17a38730e84eb3
+    relatedImages: []
+    version: 2.6.0
+    release: ""
+    releasedAt: "2022-08-30T23:47:17.297786Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:c44cb538ec834dbf987cd81139ca91c2cf52498070a9526549182dd8669c298f
+    relatedImages: []
+    version: 2.6.1
+    release: ""
+    releasedAt: "2022-09-08T15:35:55.647894Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:12a06b081a8cdea335f7388112994ef912e18a54110da80fb56c728164666609
+    relatedImages: []
+    version: 2.6.2
+    release: ""
+    releasedAt: "2022-10-28T17:43:15.753795Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:379b0f178959b082d2b718bc89e8af9491ea75c48f131f6771294c7028c6c480
+    relatedImages: []
+    version: 2.6.3
+    release: ""
+    releasedAt: "2022-12-14T01:00:05.766522Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:f63d0a9a0e3dc9d86e84279c50e9c613d8430e71a3821d418e168250ca3b747c
+    relatedImages: []
+    version: 2.7.0
+    release: ""
+    releasedAt: "2023-01-26T22:52:21.401505Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:d211ac3abd79d3fbbfbe78f9c2f1886ff9e289fe01934d6e0f9f0797c6fba39b
+    relatedImages: []
+    version: 2.6.4
+    release: ""
+    releasedAt: "2023-02-14T05:38:57.950848Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:a81a574f2f22d37681c44fe0c3b958074408705415de333de54d120145537533
+    relatedImages: []
+    version: 2.7.1
+    release: ""
+    releasedAt: "2023-02-28T15:47:00.948101Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:8a2c758689eaebe6a287315ca18fd9122f323e195ea3410db005b6a449060fad
+    relatedImages: []
+    version: 2.7.2
+    release: ""
+    releasedAt: "2023-03-03T04:00:55.307021Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:208f4d9473a923817c102bb7e5f138d3e1e8ed3057a23a220ffa8fe9c0c27128
+    relatedImages: []
+    version: 2.7.3
+    release: ""
+    releasedAt: "2023-04-18T22:30:19.18469Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:e5effedf877293200648cabc0457bd76620866c6d055e76d98e9041730416fc4
+    relatedImages: []
+    version: 2.6.5
+    release: ""
+    releasedAt: "2023-04-28T18:18:45.215187Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:896433eec37908941f3dbde58e1c20f34713a0db3fe66148ae841ff2d7358bc3
+    relatedImages: []
+    version: 2.7.4
+    release: ""
+    releasedAt: "2023-05-23T22:50:21.606053Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:47bbd57fe6903e9ed9ddad5b0b7c8b2a668beaa966cfae5816af82a12e06e8c4
+    relatedImages: []
+    version: 2.6.6
+    release: ""
+    releasedAt: "2023-05-24T22:12:40.771558Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:385675e17af2107304f806d4e3fbadde5d3005fd37150371db71677da100ba53
+    relatedImages: []
+    version: 2.8.0
+    release: ""
+    releasedAt: "2023-06-12T19:48:21.050381Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:7f437248538e5ff204b0bc52299b5e058d615735c0798a934f4f5d88e08f205b
+    relatedImages: []
+    version: 2.7.5
+    release: ""
+    releasedAt: "2023-06-20T12:27:25.995554Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:8ab6e19510d6b5025a7c5653974e1e0ad72b5f884f57a9722611848f0589a213
+    relatedImages: []
+    version: 2.7.6
+    release: ""
+    releasedAt: "2023-06-29T19:19:42.196413Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:89035cd57ecbc21cdb2dab38d72c9ca32dd79839320b54ee7d871cf678853431
+    relatedImages: []
+    version: 2.7.7
+    release: ""
+    releasedAt: "2023-08-09T21:50:56.623641Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:3ebdbb5083496950160db950926aec5ed785dd0121c255dfd6ddde7c37172361
+    relatedImages: []
+    version: 2.8.1
+    release: ""
+    releasedAt: "2023-08-26T01:16:25.727838Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:90557802720e3957601cf8b7d578355d067d4f58f9a542e69da628ddbd178aa5
+    relatedImages: []
+    version: 2.6.7
+    release: ""
+    releasedAt: "2023-08-31T18:37:50.629066Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:0ca34508f67ab73e976f8880d69c43ed86dbc58f206c5c5696ef242851554b83
+    relatedImages: []
+    version: 2.7.8
+    release: ""
+    releasedAt: "2023-09-17T04:18:08.142205Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:5048535e91b1b45a6550cf634886ef377366e90a8e55d3eab4d2b5cd7eacc471
+    relatedImages: []
+    version: 2.8.2
+    release: ""
+    releasedAt: "2023-10-02T19:49:37.413766:Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:6a324ce5650572e54c17daebdea1f04d0db27d36862ea1eccef55661c96a0a38
+    relatedImages: []
+    version: 2.8.3
+    release: ""
+    releasedAt: "2023-10-24T01:23:05.251308Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:95a7dc1932aaa0782e7f201cd2d30710cba05c1fcc4a04af036d1585079003f1
+    relatedImages: []
+    version: 2.7.9
+    release: ""
+    releasedAt: "2023-10-25T18:55:17.077651Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:099e7ab081724937eabcda3fa30f892d3375f2188e95930ee8960933b09c92ae
+    relatedImages: []
+    version: 2.6.8
+    release: ""
+    releasedAt: "2023-10-26T20:24:07.995504Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:2cb6f44dbf2ae9086436bc8e7a4f81cd679b5bc6053842b1f217d3b65f96c1cc
+    relatedImages: []
+    version: 2.9.0
+    release: ""
+    releasedAt: "2023-11-15T17:23:36.655481Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:e1f914ff1a5f4b0f996b5a8897608f15730d811318289a1fe1df6a193a65b0f7
+    relatedImages: []
+    version: 2.8.4
+    release: ""
+    releasedAt: "2023-11-28T17:25:22.212237Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:dfe0d34656e1eba26a8ee2801ac14ead8eab09b0807d3f1cbdb5764f6a68d897
+    relatedImages: []
+    version: 2.7.10
+    release: ""
+    releasedAt: "2023-12-06T22:01:44.728675Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:dcb4941a95707264cf06cbb44c3cf2a9d58c68abec2033b1534c47aabf0b6910
+    relatedImages: []
+    version: 2.9.1
+    release: ""
+    releasedAt: "2023-12-12T21:17:00.673131Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:53c96e114c1b41cd77cf6849a5d48e54e4b0cdec851f1f20b877bf4dda052c4c
+    relatedImages: []
+    version: 2.9.2
+    release: ""
+    releasedAt: "2024-01-17T21:33:39.481321Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:43c9b3c767d379a35e3c2668bfef0f132c743a3af6f66d16349cc0ed2253c636
+    relatedImages: []
+    version: 2.7.11
+    release: ""
+    releasedAt: "2024-02-06T03:53:27.436426Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:b800cf3a88b55a91a43d672b605a1687adf2d8bf34e2c0ecfbb72aeea77b5c82
+    relatedImages: []
+    version: 2.8.5
+    release: ""
+    releasedAt: "2024-02-13T19:41:08.608885Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:4a6ffd660bd594f327b9f3b2fe1105419655052ebb5eb591cf990280a4e5e90e
+    relatedImages: []
+    version: 2.9.3
+    release: ""
+    releasedAt: "2024-03-11T15:01:06.018306Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:3abf42d80916bbf3443aba4567d308779e4a24c91ff33eac121cfe27256e2855
+    relatedImages: []
+    version: 2.7.12
+    release: ""
+    releasedAt: "2024-03-13T15:27:41.007921Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:2163d790466385147dc4ee69c5735cf5f369b44a002ca5bcb666b13d574ad1a4
+    relatedImages: []
+    version: 2.10.0
+    release: ""
+    releasedAt: "2024-03-19T20:00:44.029117Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:4088608161e506993bce92d4a9a65358c301a3242bd8150f49fe5ba1a9d45f47
+    relatedImages: []
+    version: 2.10.1
+    release: ""
+    releasedAt: "2024-03-25T19:36:50.420116Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:b03bd35ec3d40b8d864d5f10d75214599acb6e2c534689da2ad4f963e2fbac99
+    relatedImages: []
+    version: 2.8.6
+    release: ""
+    releasedAt: "2024-03-29T20:48:40.257192Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:7e0f8203eac13e46dcd278a2603020ffdf92c65989d1f4d12449d61a59fd1d80
+    relatedImages: []
+    version: 2.10.2
+    release: ""
+    releasedAt: "2024-04-16T23:59:54.102158Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:e4e7cb0f91369b90e856bc383729ccd85a218346aa71ecc0b4a3fd24076a9929
+    relatedImages: []
+    version: 2.10.3
+    release: ""
+    releasedAt: "2024-05-15T11:55:57.355943Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:480944ccd88f3bc8860cac64b5cd5a7eae48e6ee813210255e612ef75bb1a31e
+    relatedImages: []
+    version: 2.9.4
+    release: ""
+    releasedAt: "2024-05-30T10:19:41.343186Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:7876648976967905c9281d3fe8c335b1f2f06112bec0da3043d8fcd2b43e4819
+    relatedImages: []
+    version: 2.7.13
+    release: ""
+    releasedAt: "2024-06-03T15:55:01.754971Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:304e9a12e0c7b7be0444efd26764d32818fc3ad1ad936b565232f5f82a5f72fe
+    relatedImages: []
+    version: 2.10.4
+    release: ""
+    releasedAt: "2024-07-08T15:37:55.367536Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:50c527b4371f984e346de08837aa4e88745d58456df752a628a8802a4dfe73c1
+    relatedImages: []
+    version: 2.11.0
+    release: ""
+    releasedAt: "2024-07-11T19:05:19.071866Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:360375615666093e361fcbadc84790f47e2fd21d51f1fb83c77cbeaa50f9c394
+    relatedImages: []
+    version: 2.8.7
+    release: ""
+    releasedAt: "2024-07-15T14:33:08.02538Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:ba69a2f37df33437fb96a616fc74ffd978cd3f32672c059ee1df0c9848fad47b
+    relatedImages: []
+    version: 2.11.1
+    release: ""
+    releasedAt: "2024-07-24T21:25:34.099566Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:0b7d0b1d3296963b1084887ced17ebb31d0c5e7eb612a2e2fe9c37f37f456ff0
+    relatedImages: []
+    version: 2.11.2
+    release: ""
+    releasedAt: "2024-08-27T23:36:55.587868Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:b0c8f104f30cce48893593c5de9d7b2fbc294da7480b3590151e85a7283d7258
+    relatedImages: []
+    version: 2.10.5
+    release: ""
+    releasedAt: "2024-08-29T03:25:27.529028Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:fe9d19d8fee89aa9a69ed9801bf07ad9f1c10be7539199cb711a2954e67f3dce
+    relatedImages: []
+    version: 2.10.6
+    release: ""
+    releasedAt: "2024-09-16T23:46:54.547976Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:8f5e0bc9b879020dbacf3e136ea0f488ee464caee74aaec6f321f71386c23b91
+    relatedImages: []
+    version: 2.11.3
+    release: ""
+    releasedAt: "2024-10-02T05:37:26.797378Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:271ed0c5434f5820c32692ad75ce24fa820536087bc6d47270a9bfa5b22f610b
+    relatedImages: []
+    version: 2.9.5
+    release: ""
+    releasedAt: "2024-10-21T01:51:55.832955Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:9c2bf92d325c70c8ed5e0986c65cdb78369b831067f40dbf53500f052800ee5c
+    relatedImages: []
+    version: 2.12.0
+    release: ""
+    releasedAt: "2024-11-01T20:01:06.87519Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:d50e474677d80e95278cd5184148e3792b90545230a8dd34bfb6cf60332e8b30
+    relatedImages: []
+    version: 2.8.8
+    release: ""
+    releasedAt: "2024-11-21T05:10:13.008755Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:b75af6bec57e3934b0295fc5570b39e48e28ff6976f36cfc2c79fe0e42055409
+    relatedImages: []
+    version: 2.12.1
+    release: ""
+    releasedAt: "2024-12-03T16:48:55.943684Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:92e05b9b0e355e54022a061fc4ff91d49e23f4161818a31f3f11b94f80a903f4
+    relatedImages: []
+    version: 2.11.4
+    release: ""
+    releasedAt: "2024-12-17T13:12:33.627967Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:88dd9d86f6c92d9fc063e42e08d30f7b0b43d0c9e34da212fb485db11ad71c29
+    relatedImages: []
+    version: 2.9.6
+    release: ""
+    releasedAt: "2025-01-20T19:29:57.730062Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:6d240ed20545232b490b369b528c766e545b843d1be48d9569d55b8767166e3a
+    relatedImages: []
+    version: 2.10.7
+    release: ""
+    releasedAt: "2025-01-20T19:47:20.047599Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:08a132d3f16c10a0dc041de248d7092bf60ab559f462e67861df7875474f26e7
+    relatedImages: []
+    version: 2.11.5
+    release: ""
+    releasedAt: "2025-01-20T19:50:35.569788Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:66850b4e934906998d96198f9e768497ec7c0b4f8f230ae3d1b282b158031a3f
+    relatedImages: []
+    version: 2.12.2
+    release: ""
+    releasedAt: "2025-01-22T05:35:01.291854Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:a2b3ca439ab720f73e2b3847f22ba0f8d0b950a23a116757618804595b220965
+    relatedImages: []
+    version: 2.9.7
+    release: ""
+    releasedAt: "2025-02-12T15:11:20.372751Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:2f441edffd88b4a98f5109a9a975fe081b760b5590d1b5e51d5b02696333ff6a
+    relatedImages: []
+    version: 2.11.6
+    release: ""
+    releasedAt: "2025-02-16T03:04:40.236463Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:03d1bc821ef5032c37f6e274e7b032416c1a05668891b89af6cde73ef5ddf23c
+    relatedImages: []
+    version: 2.13.0
+    release: ""
+    releasedAt: "2025-03-19T03:33:30.143658Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:ee0dcef1c136bb88ff9c6face87b3f07b22ca8e03896dc66b5f086e69657748d
+    relatedImages: []
+    version: 2.13.1
+    release: ""
+    releasedAt: "2025-03-21T16:32:32.639173Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:fe326a4f5d15eb4b34a2b3f18e311b0f177dac59c16cad605d253d077a4ff758
+    relatedImages: []
+    version: 2.9.8
+    release: ""
+    releasedAt: "2025-03-27T20:31:11.703206Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:693575f68b88a15bb16044f5c10d9ddd123b8b21efe63fc4836738649afe5dae
+    relatedImages: []
+    version: 2.13.2
+    release: ""
+    releasedAt: "2025-04-03T01:37:58.192289Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:0aa6cd2a1b67390ed77dd3d22aba64161b0274fa7a6c07ee08ea33de5450306a
+    relatedImages: []
+    version: 2.12.3
+    release: ""
+    releasedAt: "2025-04-09T14:40:56.8112Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:0d51e12c7f89004a4cba9fdbc3477e76994dc631dce3e7c1a0790775b8385355
+    relatedImages: []
+    version: 2.10.8
+    release: ""
+    releasedAt: "2025-05-01T15:58:40.356918Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:1c71881a3da648b529b3e4e254ba3557ea1347cffa945ec8f522e8a80b16f8d7
+    relatedImages: []
+    version: 2.11.7
+    release: ""
+    releasedAt: "2025-05-05T05:35:28.616684Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:0bbcd506e366e01f27f89b450c79a4dfa528ea980c7bc88a9f8a50bc998aeb44
+    relatedImages: []
+    version: 2.9.9
+    release: ""
+    releasedAt: "2025-05-16T18:19:20.387004Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:be468395c00c323b013c14f535472f5d7f49b9ed36fba2645ff102eaf99b197e
+    relatedImages: []
+    version: 2.13.3
+    release: ""
+    releasedAt: "2025-05-28T21:13:33.120161Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:a0e4c432590e65818e7ebaab127d483d68fdc5ccae9a13820665a8aef122fde7
+    relatedImages: []
+    version: 2.12.4
+    release: ""
+    releasedAt: "2025-07-21T22:15:33.923779Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:437a786a301ea720cdb5651dff878a9f51470bab46ba28daae4928c7074c9157
+    relatedImages: []
+    version: 2.14.0
+    release: ""
+    releasedAt: "2025-07-25T02:11:21.312943Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:b319f6c5344f92701f7c3b6c5cb63fc6e21076edee935118dc6f60b7e91728cf
+    relatedImages: []
+    version: 2.11.8
+    release: ""
+    releasedAt: "2025-08-01T05:27:42.882123Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:b337471f1922a0770a4ec07526ad7761430107141b00dabeb5d335fac15d0c0a
+    relatedImages: []
+    version: 2.10.9
+    release: ""
+    releasedAt: "2025-08-06T03:19:34.416495Z"
+  - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:242d754d5fe1f2a07091ae93da284b8912e0f4b4c973200cf6d1241e6abb88a9
+    relatedImages: []
+    version: 2.13.4
+    release: ""
+    releasedAt: "2025-09-08T18:39:12.874068Z"
+retractions: []

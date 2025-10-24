@@ -61,7 +61,7 @@ type Client struct {
 	httpClient func() (*http.Client, error)
 }
 
-func (c *Client) GetPackage(ctx context.Context, catalog *ocv1.ClusterCatalog, pkgName string) (*declcfg.DeclarativeConfig, error) {
+func (c *Client) GetPackage(ctx context.Context, catalog *ocv1.ClusterCatalog, pkgName string) ([]declcfg.Meta, error) {
 	if err := validateCatalog(catalog); err != nil {
 		return nil, err
 	}
@@ -79,17 +79,24 @@ func (c *Client) GetPackage(ctx context.Context, catalog *ocv1.ClusterCatalog, p
 		if !errors.Is(err, fs.ErrNotExist) {
 			return nil, fmt.Errorf("error getting package %q: %v", pkgName, err)
 		}
-		return &declcfg.DeclarativeConfig{}, nil
+		return nil, nil
 	}
 
-	pkgFBC, err := declcfg.LoadFS(ctx, pkgFsys)
-	if err != nil {
+	var metas []declcfg.Meta
+	if err := declcfg.WalkMetasFS(ctx, pkgFsys, func(path string, meta *declcfg.Meta, err error) error {
+		if err != nil {
+			return err
+		}
+		metas = append(metas, *meta)
+		return nil
+	}); err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return nil, fmt.Errorf("error loading package %q: %v", pkgName, err)
 		}
-		return &declcfg.DeclarativeConfig{}, nil
+		return nil, nil
 	}
-	return pkgFBC, nil
+
+	return metas, nil
 }
 
 func (c *Client) PopulateCache(ctx context.Context, catalog *ocv1.ClusterCatalog) (fs.FS, error) {

@@ -12,6 +12,9 @@ options:
     enabled: true
   featureSet: experimental
   operatorController:
+    deployment:
+      extraArguments:
+        - --global-pull-secret=olmv1-system/pull-secret
     features:
       enabled:
         - WebhookProviderCertManager

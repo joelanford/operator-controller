@@ -1,0 +1,628 @@
+---
+schema: olm.package.v2
+package: quay-operator
+versionStreams:
+  - version: "3.7"
+    minimumUpdateVersion: 3.4.0
+    lifecycleDates:
+      fullSupport: "2022-05-23"
+      maintenance: "2022-12-06"
+      extensions:
+        - "2023-08-14"
+      eol: "2023-11-28"
+    supportedPlatformVersions:
+      - "4.6"
+      - "4.7"
+      - "4.8"
+      - "4.9"
+      - "4.10"
+      - "4.11"
+      - "4.12"
+      - "4.13"
+  - version: "3.8"
+    minimumUpdateVersion: 3.5.0
+    lifecycleDates:
+      fullSupport: "2022-12-06"
+      maintenance: "2023-08-14"
+      extensions:
+        - "2023-11-17"
+      eol: "2024-02-16"
+    supportedPlatformVersions:
+      - "4.8"
+      - "4.9"
+      - "4.10"
+      - "4.11"
+      - "4.12"
+      - "4.13"
+  - version: "3.9"
+    minimumUpdateVersion: 3.6.0
+    lifecycleDates:
+      fullSupport: "2023-08-14"
+      maintenance: "2024-03-17"
+      extensions:
+        - "2024-06-17"
+        - "2025-01-17"
+      eol: "2026-01-17"
+    supportedPlatformVersions:
+      - "4.10"
+      - "4.11"
+      - "4.12"
+      - "4.13"
+  - version: "3.10"
+    minimumUpdateVersion: 3.7.0
+    lifecycleDates:
+      fullSupport: "2023-11-28"
+      maintenance: "2024-05-27"
+      extensions:
+        - "2025-05-01"
+        - "2025-10-31"
+      eol: "2026-10-31"
+    supportedPlatformVersions:
+      - "4.11"
+      - "4.12"
+      - "4.13"
+      - "4.14"
+  - version: "3.11"
+    minimumUpdateVersion: 3.8.0
+    lifecycleDates:
+      fullSupport: "2024-04-02"
+      maintenance: "2024-09-27"
+      eol: "2025-08-27"
+    supportedPlatformVersions:
+      - "4.12"
+      - "4.13"
+      - "4.14"
+      - "4.15"
+  - version: "3.12"
+    minimumUpdateVersion: 3.9.0
+    lifecycleDates:
+      fullSupport: "2024-07-23"
+      maintenance: "2025-01-01"
+      extensions:
+        - "2025-12-27"
+        - "2026-06-27"
+      eol: "2027-06-27"
+    supportedPlatformVersions:
+      - "4.12"
+      - "4.14"
+      - "4.15"
+      - "4.16"
+  - version: "3.13"
+    minimumUpdateVersion: 3.10.0
+    lifecycleDates:
+      fullSupport: "2024-10-30"
+      maintenance: "2025-05-25"
+      eol: "2026-04-01"
+    supportedPlatformVersions:
+      - "4.12"
+      - "4.14"
+      - "4.15"
+      - "4.16"
+      - "4.17"
+  - version: "3.14"
+    minimumUpdateVersion: 3.11.0
+    lifecycleDates:
+      fullSupport: "2025-04-02"
+      maintenance: "2025-09-17"
+      extensions:
+        - "2026-08-25"
+        - "2027-02-25"
+      eol: "2028-02-25"
+    supportedPlatformVersions:
+      - "4.12"
+      - "4.14"
+      - "4.15"
+      - "4.16"
+      - "4.17"
+      - "4.18"
+  - version: "3.15"
+    minimumUpdateVersion: 3.12.0
+    lifecycleDates:
+      fullSupport: "2025-07-07"
+      maintenance: "2026-01-21"
+      eol: "2026-12-17"
+    supportedPlatformVersions:
+      - "4.12"
+      - "4.14"
+      - "4.15"
+      - "4.16"
+      - "4.17"
+      - "4.18"
+      - "4.19"
+bundles:
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:d3d0edb737ac4bd1a5aa599ae50f9415e16ef4fb08b97db2e2ad1b63529eab8c
+    relatedImages: []
+    version: 3.7.10
+    release: ""
+    releasedAt: "2022-10-26T12:25:37Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:79c3776578578ac448893ddaf459e421b9f633663dccd2e1f22b3741fe31b352
+    relatedImages: []
+    version: 3.8.0
+    release: ""
+    releasedAt: "2022-11-28T16:57:01Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:7f8d1551a03e25d64c65d72acc0d2cbbffd8bacf19d7b47d4835f1ed2cba69bb
+    relatedImages: []
+    version: 3.7.11
+    release: ""
+    releasedAt: "2022-12-07T13:31:48Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:5b5a6d984da5a49d9cd5b5110ac217201957532b0f0ebd82d8d450c43769a851
+    relatedImages: []
+    version: 3.8.1
+    release: ""
+    releasedAt: "2023-01-13T07:01:02Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:583bad57b263d27e2424c25e316052053a8750adeea00d6eb501102aaa541b3a
+    relatedImages: []
+    version: 3.8.2
+    release: ""
+    releasedAt: "2023-02-09T22:54:53Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:6c73d4ef1df14f03f1b78fc8d1e4a199bc6080d3de08de698e2d1dc427939c2e
+    relatedImages: []
+    version: 3.8.3
+    release: ""
+    releasedAt: "2023-02-22T07:15:57Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:bffb566dc6647c99dd8e9c33a3c5b85049c4a3815641c365b7a0ca12e4e05dbf
+    relatedImages: []
+    version: 3.8.4
+    release: ""
+    releasedAt: "2023-03-13T18:17:50Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:910b7584ab513d35048e50da1f733c24f883081a55c9fc2284868acf3b52527d
+    relatedImages: []
+    version: 3.8.5
+    release: ""
+    releasedAt: "2023-03-21T17:07:05Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:df565e4de83a85a814335e4236adf60d76546d584d3ac4e8ce86fc929202ff94
+    relatedImages: []
+    version: 3.8.6
+    release: ""
+    releasedAt: "2023-04-13T14:08:45Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:8d27ed67180a840d7fad1b39f1a1e53ab12a00a963d5a9885528285474a67e48
+    relatedImages: []
+    version: 3.8.7
+    release: ""
+    releasedAt: "2023-05-02T20:02:02Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:edc893743befde9b8a209bcbfbdcc7bfc74bce5dde84fa17be1a7aef704c0ac8
+    relatedImages: []
+    version: 3.8.8
+    release: ""
+    releasedAt: "2023-05-17T09:48:36Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:6b7c1ec823f180584e561440d9f698e7d0a7a9cff0bc6efb86f9b4500f71d9b5
+    relatedImages: []
+    version: 3.8.9
+    release: ""
+    releasedAt: "2023-06-08T20:56:47Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:52d6508d2d9d2390aa7ffba04fd0454a65742045dda515d6c62fead234be188e
+    relatedImages: []
+    version: 3.8.10
+    release: ""
+    releasedAt: "2023-06-28T03:36:34Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:ecb57f8416904c983ef7aa39cbec1626741168a806bd4adb1154930814a0e8bc
+    relatedImages: []
+    version: 3.7.12
+    release: ""
+    releasedAt: "2023-07-04T09:43:40Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:fe408f5116d5695340658f3657fcbaadf3e8bd252ca72d2c6a10d57145f56a97
+    relatedImages: []
+    version: 3.7.13
+    release: ""
+    releasedAt: "2023-07-13T19:29:43Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:a97a63899d23e23d039ea36bd575c018d7b6295b7942b15a8bded52f09736bda
+    relatedImages: []
+    version: 3.8.11
+    release: ""
+    releasedAt: "2023-08-07T23:22:58Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:abd024d8e764dc8ea95d906cc1fbeeebfc978e3d55c80b2253f1ec9425e60add
+    relatedImages: []
+    version: 3.9.0
+    release: ""
+    releasedAt: "2023-08-08T18:20:31Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:4864bc0d5c18a84a5f19e5e664b58d3133a2ac2a309c6b5659ab553f33214b09
+    relatedImages: []
+    version: 3.9.1
+    release: ""
+    releasedAt: "2023-08-31T03:56:26Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:e3f63ea56de7ca5388a20c17ac63e16f07935ab09bcdcd38a86639c9d59c8a7d
+    relatedImages: []
+    version: 3.7.14
+    release: ""
+    releasedAt: "2023-09-06T21:51:50Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:bf26c7679ea1f7b47d2b362642a9234cddb9e366a89708a4ffcbaf4475788dc7
+    relatedImages: []
+    version: 3.8.12
+    release: ""
+    releasedAt: "2023-09-11T10:10:18Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:42123d9b4e52961da535b0e436f81cc82ca16b969773030cacce49cf550f5d90
+    relatedImages: []
+    version: 3.9.2
+    release: ""
+    releasedAt: "2023-09-19T19:44:51Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:c32c27f0aad61cd95d29d2bb8f99d525f7b0999ecba44b642e88ab77f8892553
+    relatedImages: []
+    version: 3.8.13
+    release: ""
+    releasedAt: "2023-10-11T01:47:11Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:d5977dda2d3da4a751597f849de321c76303f7ffb4da18fb24db530a040baf33
+    relatedImages: []
+    version: 3.9.3
+    release: ""
+    releasedAt: "2023-10-11T17:16:26Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:39fe504ac94fce04fa8679657aa97e42b530b3b4f0699ac90194a7373f0e4129
+    relatedImages: []
+    version: 3.9.4
+    release: ""
+    releasedAt: "2023-10-26T15:43:19Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:83f3314aa0ef15f5b0e49f4a4819d8404b8ce62e3c5a9c6ac0b8b20699f7561c
+    relatedImages: []
+    version: 3.8.14
+    release: ""
+    releasedAt: "2023-11-03T08:09:04Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:3694b45af16019f667d19f8275d5edc9fcde4809131dd732a89e7f17e5012174
+    relatedImages: []
+    version: 3.9.5
+    release: ""
+    releasedAt: "2023-11-08T17:19:36Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:0e0b3af9b4b673ea2b1f0276caf82fb51c8b6fa9c15874c79028d18a3344bd4c
+    relatedImages: []
+    version: 3.10.0
+    release: ""
+    releasedAt: "2023-11-17T04:02:36Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:e9f29c179d1371e513e89b502678f33ff656a9b527ed2b7dbc0d0145dca6fd6c
+    relatedImages: []
+    version: 3.10.1
+    release: ""
+    releasedAt: "2023-12-06T12:35:42Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:70904d43814b2f80d045647149ec4462eb4eec01451e34bbb393963856afec08
+    relatedImages: []
+    version: 3.10.2
+    release: ""
+    releasedAt: "2024-01-08T23:01:31Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:5cd75224430fa323017374453a30ec5f2a57c0191a5deb4d17a36736ccdec28d
+    relatedImages: []
+    version: 3.9.6
+    release: ""
+    releasedAt: "2024-01-09T10:09:40Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:34a0e75c106c6baf0bec422f510540c8cb982f85f13eee3204e9efc09c1cb0dc
+    relatedImages: []
+    version: 3.10.3
+    release: ""
+    releasedAt: "2024-01-23T17:35:46Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:53fcddadaa31a5f7d74c38f0bbd0d80b4c09796a580ef8494f60ff82fb6fe6c1
+    relatedImages: []
+    version: 3.8.15
+    release: ""
+    releasedAt: "2024-01-26T22:33:26Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:d9f004eb035fae6de69a9178be66fb63620e8e8bd149af31d1e5e221408bbdd9
+    relatedImages: []
+    version: 3.10.4
+    release: ""
+    releasedAt: "2024-02-21T17:45:13Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:49ed0a4481b26b3cd6ab20982281f598e6c0c57518cbd1883130a3c643547686
+    relatedImages: []
+    version: 3.11.0
+    release: ""
+    releasedAt: "2024-03-19T20:57:21Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:a5feb23b7ba65ee60949a830323326d1dfa77e94b1fda9557ae8e081bea9c1f2
+    relatedImages: []
+    version: 3.10.5
+    release: ""
+    releasedAt: "2024-04-10T08:25:34Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:b4314df6612275c4dcc91e9c23df26573a702befffde73a801fe04a29c2ec46f
+    relatedImages: []
+    version: 3.9.7
+    release: ""
+    releasedAt: "2024-05-10T21:41:15Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:325f8bb2deb57fa1aad49e31b27414773fd9f56243a7708dbfdc39f468017c11
+    relatedImages: []
+    version: 3.11.1
+    release: ""
+    releasedAt: "2024-05-16T22:00:14Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:4e370692cf8b014c45ca9caa7f66c7758c00139b8733bd6c35d26e2298c9143c
+    relatedImages: []
+    version: 3.10.6
+    release: ""
+    releasedAt: "2024-06-04T17:32:14Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:9a2a2dacd3e8568077e5d66c1c6439949030d96dd376bc74f08657f46500d096
+    relatedImages: []
+    version: 3.9.8
+    release: ""
+    releasedAt: "2024-06-06T10:39:31Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:cbd085eaf4a84540b3e1430d2cfade8725d8a2ba1573a400a3b00507cbe33261
+    relatedImages: []
+    version: 3.11.2
+    release: ""
+    releasedAt: "2024-07-10T19:46:14Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:12b32f188ca5b74182a70a821b92d0586412bbc669f05e737518bec4599fc819
+    relatedImages: []
+    version: 3.12.0
+    release: ""
+    releasedAt: "2024-07-18T21:17:24Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:9266d00fcb0897578c81b31fddddffd007ac260cdd9a5ca459d97014402e01fd
+    relatedImages: []
+    version: 3.11.3
+    release: ""
+    releasedAt: "2024-07-19T17:11:28Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:c5d110cbfa354290791218f4c0ae82953b00922f2dae15cab20ad8f7f3308cbf
+    relatedImages: []
+    version: 3.11.4
+    release: ""
+    releasedAt: "2024-08-09T16:26:06Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:9607e4d2493623608d8c7b578ff65cbece8e0b7f609b82f22858f9e313f4face
+    relatedImages: []
+    version: 3.12.1
+    release: ""
+    releasedAt: "2024-08-12T19:57:31Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:7a997716b48ad2d2c355574e613c2a4e58666dc51038c9dd1ca977de53d42a78
+    relatedImages: []
+    version: 3.12.2
+    release: ""
+    releasedAt: "2024-08-27T23:11:49Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:2da7120fb4f6fcdc23b46dc17392cd07da488a9724c45b4fdc594f522823be60
+    relatedImages: []
+    version: 3.11.5
+    release: ""
+    releasedAt: "2024-08-28T19:39:51Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:dc672333dc42b38f9575332c2db88908ba25bbdaec64280bd93af1c809be52ea
+    relatedImages: []
+    version: 3.11.6
+    release: ""
+    releasedAt: "2024-09-18T20:27:04Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:16dd553163f07fc5abb799d00e3e6d5bbdde210b31ffb8c63be712a67b215bdf
+    relatedImages: []
+    version: 3.12.3
+    release: ""
+    releasedAt: "2024-09-18T22:18:10Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:a1ac11f84a39c5b67a6bb1256643306e4a4e46fbc85e4536957fa1a3d0d09d3e
+    relatedImages: []
+    version: 3.12.4
+    release: ""
+    releasedAt: "2024-10-21T18:54:54Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:48adfdfec9aa746bb0689cfd5897001c63bba5943f4ba3cb743b43e2c3794904
+    relatedImages: []
+    version: 3.13.0
+    release: ""
+    releasedAt: "2024-10-25T03:09:54Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:6337c0cbc7fbb36a652f14df127ec97aa14a11b37d5e5cadec6a9e13d7ee1115
+    relatedImages: []
+    version: 3.13.1
+    release: ""
+    releasedAt: "2024-11-15T02:15:50Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:ec6a850a593940edef15206480b85445df67d2041de1660bd374308ec52271af
+    relatedImages: []
+    version: 3.12.5
+    release: ""
+    releasedAt: "2024-11-19T19:01:29Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:cee9e962edb9859a0ec06dbbd6f327e778625d2f0f84da4056a0ae7709ca01e8
+    relatedImages: []
+    version: 3.13.2
+    release: ""
+    releasedAt: "2024-12-11T02:38:47Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:5a6394233e10b9a8aa0b48eb14d42223f7a28d0398a312c0130f513bf4b227a8
+    relatedImages: []
+    version: 3.12.6
+    release: ""
+    releasedAt: "2024-12-11T02:44:13Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:ebe465dc34b9242370a147bc1d8b884038777308779f8a84ae267ea6ec76ed3a
+    relatedImages: []
+    version: 3.10.7
+    release: ""
+    releasedAt: "2024-12-11T02:54:59Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:a2181f2a732c445f3662988e3dab7e9fbfa23287ea518c239cfe84b061a7b5a2
+    relatedImages: []
+    version: 3.11.7
+    release: ""
+    releasedAt: "2024-12-11T22:09:27Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:01b90a1fb68ef11b0a6b2ac943ca182b8cd84dd46d10539d39394c5684d273af
+    relatedImages: []
+    version: 3.9.9
+    release: ""
+    releasedAt: "2024-12-16T17:36:26Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:3bdce7b1dc65ee8be1a77b74111a763860e837aec4454e1f3b65d0e2f2feb24e
+    relatedImages: []
+    version: 3.12.7
+    release: ""
+    releasedAt: "2025-01-08T20:57:59Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:2cc0b99e370e881c3c2e32f6cd847e8a70b8ab3773bac458e1bf129a20e2b634
+    relatedImages: []
+    version: 3.13.3
+    release: ""
+    releasedAt: "2025-01-11T02:42:10Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:48457a0cf0759d88bf0a0b93e299df6849480c331225f93bab77cd6864b432a2
+    relatedImages: []
+    version: 3.11.8
+    release: ""
+    releasedAt: "2025-01-27T20:42:10Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:9c273c3fd74d4274e27927bf5833b49f0cafb12984de02b5c46d58f2956b1b5d
+    relatedImages: []
+    version: 3.10.8
+    release: ""
+    releasedAt: "2025-01-28T15:16:08Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:ea077de1039e87e20f699ab2a68fa4f825898f7164bf071cc9404653789e352f
+    relatedImages: []
+    version: 3.12.8
+    release: ""
+    releasedAt: "2025-02-13T16:58:58Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:d4f2c24ed74f76af477427b7bb7159d08f480fa9890cb1227307b286c9be2771
+    relatedImages: []
+    version: 3.10.9
+    release: ""
+    releasedAt: "2025-02-18T14:17:32Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:6cc8cf175183a488c50d0f2bb2aff91180d70722ea6cf39967e53092adac69ff
+    relatedImages: []
+    version: 3.13.4
+    release: ""
+    releasedAt: "2025-02-18T16:57:03Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:923b0084f2f6c0c8e097c12fd0b381314b1f2f407ab77a49b97d837c88c8d641
+    relatedImages: []
+    version: 3.9.10
+    release: ""
+    releasedAt: "2025-02-18T21:59:08Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:03d6966a76dc2caf6e9cfc009342be32fa9824e6f191ce5b19fcbe5fb45c2ffb
+    relatedImages: []
+    version: 3.11.9
+    release: ""
+    releasedAt: "2025-02-19T16:37:40Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:92f15de12122f39dc5177be40ab1ba955f5ead15ee2653373d765ac6b4026c42
+    relatedImages: []
+    version: 3.14.0
+    release: ""
+    releasedAt: "2025-03-19T15:29:08Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:9241d9983d0ecdd81df219c94d84af350da3ae15e05a31ff941554f34a562d64
+    relatedImages: []
+    version: 3.11.10
+    release: ""
+    releasedAt: "2025-04-03T06:45:14Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:c9f3b604b9a0ddae02f7ed5777d8c904080e27bb65c108bc100e8753936e995c
+    relatedImages: []
+    version: 3.12.9
+    release: ""
+    releasedAt: "2025-04-03T15:56:13Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:bba4277aa8b8e4bc87193138427670114e8e9b5f0b8dd6033b4e489c44d769e6
+    relatedImages: []
+    version: 3.10.10
+    release: ""
+    releasedAt: "2025-04-23T16:51:13Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:df44ff8686b925d1d67a4ec36f7f1cbdc5eda783eac9661c80aa19a2ae72c6b3
+    relatedImages: []
+    version: 3.9.11
+    release: ""
+    releasedAt: "2025-04-28T22:03:34Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:635ec8aa2cbd5a2387656f615f1ffed7b54845df47780363c42383cdefc20196
+    relatedImages: []
+    version: 3.13.5
+    release: ""
+    releasedAt: "2025-04-30T00:10:10Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:d9fc5df956f8c6eadee8bffe5c87f39046c3aba12d27b94a230ee3d95f1bb4ce
+    relatedImages: []
+    version: 3.14.1
+    release: ""
+    releasedAt: "2025-05-12T17:42:24Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:4d0ac1d9b97c910ef56f140d17e5bd80ab0319946dbec5570ed95d01f8aec383
+    relatedImages: []
+    version: 3.10.11
+    release: ""
+    releasedAt: "2025-05-22T17:30:22Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:bc579e916a49be8a4faeae6aaa2a6b7f127c4cc1ee8e5d51c73a645969bbbd0f
+    relatedImages: []
+    version: 3.9.12
+    release: ""
+    releasedAt: "2025-05-22T19:27:30Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:13d37219c20374e35645c8e445dbee9f33db5405dcaed657393bc55018607230
+    relatedImages: []
+    version: 3.14.2
+    release: ""
+    releasedAt: "2025-05-27T19:40:51Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:c62022f30097479733acb032b70f487626214a709c58e9f64def039f48e56845
+    relatedImages: []
+    version: 3.13.6
+    release: ""
+    releasedAt: "2025-05-27T19:56:11Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:0101f030419559c83de5939e2d317bf223766868c39ee6a7851a8fb15d291b6b
+    relatedImages: []
+    version: 3.12.10
+    release: ""
+    releasedAt: "2025-05-28T18:37:09Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:4e71a205c9cbb94c923b835b23db4c0e976429e76e40bba306799e87c7a4d588
+    relatedImages: []
+    version: 3.11.11
+    release: ""
+    releasedAt: "2025-05-29T04:54:49Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:25885f6a408acf775d5c87acfda8ffb251de9a5b6b6470ca76c46c06dd9e9612
+    relatedImages: []
+    version: 3.15.0
+    release: ""
+    releasedAt: "2025-06-26T19:43:45Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:6a76759abc690c128d9ed6e001148e0563a015aff7b23e8c3dbf1138f66c1fcc
+    relatedImages: []
+    version: 3.10.12
+    release: ""
+    releasedAt: "2025-07-14T14:53:43Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:05dcb8b059f879acbc65f176ba1e0b848857faab1445928356b7239423d58cd7
+    relatedImages: []
+    version: 3.9.13
+    release: ""
+    releasedAt: "2025-07-14T15:17:33Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:8fe1ce3027cab938bb7127d21cfc20ce30b64b75e6e2d358052f41492e436d91
+    relatedImages: []
+    version: 3.13.7
+    release: ""
+    releasedAt: "2025-07-16T04:43:27Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:b1af328daa0b07c0701b5b40518e782da8b6f937976a21bf3907d4140a09935c
+    relatedImages: []
+    version: 3.14.3
+    release: ""
+    releasedAt: "2025-07-16T16:49:57Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:7e844a799ba93e2a89acfd8cdf970091c75f31ba0933bd1f913dd8c94ee222fe
+    relatedImages: []
+    version: 3.12.11
+    release: ""
+    releasedAt: "2025-07-17T07:01:33Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:06f052c5976f6ba55a298d75f5d8160ac1b8c95c00dd9dafe48cb67b545e7ee3
+    relatedImages: []
+    version: 3.11.12
+    release: ""
+    releasedAt: "2025-07-25T05:23:16Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:c431ad9dfd69c049e6d9583928630c06b8612879eeed57738fa7be206061fee2
+    relatedImages: []
+    version: 3.10.13
+    release: ""
+    releasedAt: "2025-07-30T20:39:54Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:814ef1930c441f157348a70a2ad6b842c1713e0ffe2f468b52b9c79ecb8275b7
+    relatedImages: []
+    version: 3.9.14
+    release: ""
+    releasedAt: "2025-08-01T19:31:03Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:7293f471e0af7b67ccd26e134838ceccfe6fffaaedc8cffd02bf06104dd70402
+    relatedImages: []
+    version: 3.15.1
+    release: ""
+    releasedAt: "2025-08-05T10:16:38Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:06f6d189e18f65f3efec205eb784195f49d72b192b69cb79cb58dd9405d7fc99
+    relatedImages: []
+    version: 3.14.4
+    release: ""
+    releasedAt: "2025-08-05T20:51:49Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:b35c8b108670e3e20d086985913ca41ca1318076f0840c899d2b7d51584be203
+    relatedImages: []
+    version: 3.9.15
+    release: ""
+    releasedAt: "2025-08-25T19:00:47Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:4a004584fa6c7187481e8c8480f17e0e4edd18c32f52a2e271c68d02f1a9655f
+    relatedImages: []
+    version: 3.13.8
+    release: ""
+    releasedAt: "2025-08-26T20:27:59Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:f19ae051041c46fe7587f903a9c6221bcbe8be2c4cc0235739f7592eb93ae164
+    relatedImages: []
+    version: 3.11.13
+    release: ""
+    releasedAt: "2025-08-27T16:48:41Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:addc5a7b529d3e920bbeb05d505f8c2b1b2afbdba36dbc1b6cfa2f0a8ca46488
+    relatedImages: []
+    version: 3.10.14
+    release: ""
+    releasedAt: "2025-09-02T13:32:25Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:b499eebed32c0261db414e307f96f8aef9e743035544c80c048526e7ba4fbdc2
+    relatedImages: []
+    version: 3.15.2
+    release: ""
+    releasedAt: "2025-09-02T22:38:59Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:f16c0a135dd7380e2a489f963b38bd76a63a973f482d06ece8d3656aff223703
+    relatedImages: []
+    version: 3.14.5
+    release: ""
+    releasedAt: "2025-09-04T18:43:31Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:28e37ec35de1307405264cd4f79aaa6ce4d4ecbd6cbc27f4fef5db415c678d64
+    relatedImages: []
+    version: 3.12.12
+    release: ""
+    releasedAt: "2025-09-08T16:28:41Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:9d0ed6d279800a189c1466e0b32f80af2f8bad96a65b7dc0322c64337dddf39c
+    relatedImages: []
+    version: 3.9.16
+    release: ""
+    releasedAt: "2025-09-09T18:39:03Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:ed97b11fa0f0f7aadf193810a5a599bf26015a0af8ee6fd90061110dcb0d50f4
+    relatedImages: []
+    version: 3.10.15
+    release: ""
+    releasedAt: "2025-09-10T14:58:31Z"
+retractions: []

@@ -1,0 +1,660 @@
+---
+schema: olm.package.v2
+package: cluster-logging
+versionStreams:
+  - version: "5.5"
+    minimumUpdateVersion: 5.4.0
+    lifecycleDates:
+      fullSupport: "2022-08-18"
+      maintenance: "2023-02-19"
+      eol: "2023-11-02"
+    supportedPlatformVersions:
+      - "4.9"
+      - "4.10"
+      - "4.11"
+      - "4.12"
+  - version: "5.6"
+    minimumUpdateVersion: 5.4.0
+    lifecycleDates:
+      fullSupport: "2023-01-19"
+      maintenance: "2023-06-10"
+      eol: "2025-01-18"
+    supportedPlatformVersions:
+      - "4.10"
+      - "4.11"
+      - "4.12"
+      - "4.13"
+  - version: "5.7"
+    minimumUpdateVersion: 5.5.0
+    lifecycleDates:
+      fullSupport: "2023-05-10"
+      maintenance: "2023-12-04"
+      eol: "2024-09-24"
+    supportedPlatformVersions:
+      - "4.11"
+      - "4.12"
+      - "4.13"
+      - "4.14"
+  - version: "5.8"
+    minimumUpdateVersion: 5.6.0
+    lifecycleDates:
+      fullSupport: "2023-11-02"
+      maintenance: "2024-05-05"
+      eol: "2025-11-03"
+    supportedPlatformVersions:
+      - "4.12"
+      - "4.13"
+      - "4.14"
+      - "4.15"
+      - "4.16"
+      - "4.17"
+  - version: "5.9"
+    minimumUpdateVersion: 5.7.0
+    lifecycleDates:
+      fullSupport: "2024-04-04"
+      maintenance: "2024-10-24"
+      eol: "2025-11-03"
+    supportedPlatformVersions:
+      - "4.13"
+      - "4.14"
+      - "4.15"
+      - "4.16"
+  - version: "6.0"
+    minimumUpdateVersion: 5.8.0
+    lifecycleDates:
+      fullSupport: "2024-09-24"
+      maintenance: "2024-12-13"
+      extensions:
+        - "2025-12-27"
+      eol: "2027-06-27"
+    supportedPlatformVersions:
+      - "4.14"
+      - "4.15"
+      - "4.16"
+      - "4.17"
+  - version: "6.1"
+    minimumUpdateVersion: 5.9.0
+    lifecycleDates:
+      fullSupport: "2024-11-13"
+      maintenance: "2025-04-12"
+      eol: "2025-11-16"
+    supportedPlatformVersions:
+      - "4.15"
+      - "4.16"
+      - "4.17"
+      - "4.18"
+  - version: "6.2"
+    minimumUpdateVersion: 6.0.0
+    lifecycleDates:
+      fullSupport: "2025-03-12"
+      maintenance: "2025-08-16"
+      extensions:
+        - "2026-08-25"
+      eol: "2028-02-25"
+    supportedPlatformVersions:
+      - "4.16"
+      - "4.17"
+      - "4.18"
+      - "4.19"
+  - version: "6.3"
+    minimumUpdateVersion: 6.1.0
+    lifecycleDates:
+      fullSupport: "2025-07-16"
+      maintenance: "2025-12-16"
+      eol: "2026-03-12"
+    supportedPlatformVersions:
+      - "4.17"
+      - "4.18"
+      - "4.19"
+bundles:
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:4c4de06a25a88af6dfda3848e2cdc66e2b81b0d11a8fb81043c1199ad215f43c
+    relatedImages: []
+    version: 5.6.1
+    release: ""
+    releasedAt: "2023-02-07T14:27:34.46902Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:6ea4e32c22e63bd6c3903580a805da54afa291b7e190b4f5a21858a244d25acf
+    relatedImages: []
+    version: 5.6.2
+    release: ""
+    releasedAt: "2023-02-15T02:52:46.354969Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:c45854097cbbc184830cc41e57518afd1d93b909c5a6bf62d17cd922460f05a2
+    relatedImages: []
+    version: 5.6.3
+    release: ""
+    releasedAt: "2023-03-01T21:57:51.800523Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:b009f0a28c67cad352f7b52c46b89e9a295b56c4b96a6bcf32d59eb7e8b9a16f
+    relatedImages: []
+    version: 5.6.4
+    release: ""
+    releasedAt: "2023-03-26T14:32:57.75284Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:f1a9fce2a0474fffabc36e62b3208e333a2154b0c75b8674f0264c0e77faf011
+    relatedImages: []
+    version: 5.6.5
+    release: ""
+    releasedAt: "2023-04-19T16:55:26.882831Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:ffd011baa54ec51b98eb6f5d5d7ef3e01fd0f85284643a4588dc9cab50ade60c
+    relatedImages: []
+    version: 5.7.0
+    release: ""
+    releasedAt: "2023-05-05T00:03:48.855983Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:e43a4580ad56e96e9ce2a2b857738b46b6e9674a76e21a49a7cf5ecb0440de07
+    relatedImages: []
+    version: 5.6.6
+    release: ""
+    releasedAt: "2023-05-16T07:43:24.56548Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:d910050a3e71e2e42dc8b698cf9c3ef354dd1bce377c53247fdb879ffc0188af
+    relatedImages: []
+    version: 5.7.1
+    release: ""
+    releasedAt: "2023-05-17T12:42:11.137318Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:43e9e2a8a1e2ac4a11e8fd4af55f0df12206f172246a534ed2fd8ce79bcecccc
+    relatedImages: []
+    version: 5.6.7
+    release: ""
+    releasedAt: "2023-06-07T16:00:59.648713Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:67922a4fa417673d97eca28344c77ba81d4f77cb1b86e1ca532b41a82b6f6520
+    relatedImages: []
+    version: 5.7.2
+    release: ""
+    releasedAt: "2023-06-12T12:02:07.461626Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:c01e6ae2d1ae50d48ce903244caa16a712c4720d641aec38bee83206c21fd12d
+    relatedImages: []
+    version: 5.6.8
+    release: ""
+    releasedAt: "2023-07-08T19:08:09.409299Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:dbeee2a22f408eaaa8c36efd07b54c3fcfc29de0d22f1b2ab52f66cfe7de75b0
+    relatedImages: []
+    version: 5.7.3
+    release: ""
+    releasedAt: "2023-07-10T20:39:03.445692Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:a688c3cad08fefac0695575029543f6263087abb6b8a6214841c1ce4d6f02108
+    relatedImages: []
+    version: 5.6.9
+    release: ""
+    releasedAt: "2023-07-22T06:35:25.993175Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:e56a09fc05288a5a2ef9eb4ed9536b517e5a19b6317be07ac9caeed7cdabc2c3
+    relatedImages: []
+    version: 5.7.4
+    release: ""
+    releasedAt: "2023-07-27T19:22:23.012575Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:422533f2d9ab5c63ea905d59eca4de7d6299a539172010d11df1bacc3d4a2378
+    relatedImages: []
+    version: 5.6.10
+    release: ""
+    releasedAt: "2023-08-08T16:26:57.5334Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:8e64e27c7ab5e9b9a46ca145297c61123067202f535b065f2f3cf0663836cc29
+    relatedImages: []
+    version: 5.7.5
+    release: ""
+    releasedAt: "2023-08-15T18:07:51.599473Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:bc33374ec25c20eef6c30e2626a7e2a5bb9565066636c0436e15f5780d05e33d
+    relatedImages: []
+    version: 5.7.6
+    release: ""
+    releasedAt: "2023-09-08T18:03:12.317198Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:5a6ffb1865454946ef5b7faff627a028203e57cd290b7b51871f86ed520a2574
+    relatedImages: []
+    version: 5.6.11
+    release: ""
+    releasedAt: "2023-09-12T18:07:29.62172Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:0761943b57451fa8cd0d42942a831376ab48f723e8ea461d0a5ea49c9a391d7b
+    relatedImages: []
+    version: 5.7.7
+    release: ""
+    releasedAt: "2023-10-18T09:49:53.351463Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:02c4a20e1f2b0678afe4ea0757933ce581ef66e6b189622aea7dc0fa91e6c18c
+    relatedImages: []
+    version: 5.6.12
+    release: ""
+    releasedAt: "2023-10-18T10:19:51.79553Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:eaed444b8f07a30d13f92b065d919b8b0a2dc6922b99a49f90168c3ef79c12f6
+    relatedImages: []
+    version: 5.8.0
+    release: ""
+    releasedAt: "2023-10-26T21:34:29.152263Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:db6ef49712808a474c61b8d4de703839f282423bd60ca10a29df90de63a23291
+    relatedImages: []
+    version: 5.6.13
+    release: ""
+    releasedAt: "2023-11-03T08:42:23.780139Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:14b7d003bf847466c11cc0740df2581ca30e69acb21da7475b4c3fa088c18479
+    relatedImages: []
+    version: 5.7.8
+    release: ""
+    releasedAt: "2023-11-06T22:55:35.129997Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:cff838ced67b5b5e22338f369f9dc1d2a68651e9988579b9bf4e3974d46971b7
+    relatedImages: []
+    version: 5.5.18
+    release: ""
+    releasedAt: "2023-11-07T14:05:16.221776Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:738136690c581581f91f4c26311faf21a0f737b325a7851855977ea099dd1b91
+    relatedImages: []
+    version: 5.7.9
+    release: ""
+    releasedAt: "2023-12-11T16:53:16.314086Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:2b54edd918e6223337145b0d1c47425b640cc9e0591e9c415d15acbf5c1304c6
+    relatedImages: []
+    version: 5.6.14
+    release: ""
+    releasedAt: "2023-12-11T17:20:09.859847Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:390c610a7c03bc8dadc59caa093f2805658b61cb12e555357ed8adbe89e6fb1f
+    relatedImages: []
+    version: 5.8.1
+    release: ""
+    releasedAt: "2023-12-11T22:06:25.766054Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:7754a6dea44b809450ba39aaf712a44535972ef6d574f1e042c8892f88c0c69c
+    relatedImages: []
+    version: 5.7.10
+    release: ""
+    releasedAt: "2024-01-05T14:54:09.856692Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:3a37f686a6114aa70f46e47081baef169e08eacd7b0631b7a5a1d7d6e7a80b5e
+    relatedImages: []
+    version: 5.6.15
+    release: ""
+    releasedAt: "2024-01-09T09:17:43.357078Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:35cbfc34cecd420b840b4742c11c92351b2bfb44e66993fe7337c8b870114442
+    relatedImages: []
+    version: 5.8.2
+    release: ""
+    releasedAt: "2024-01-10T20:31:33.793175Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:edd7c2c4d72c2ffd1905e640eecd67b39dc0e8b4ae8627f08dacc5273172dd80
+    relatedImages: []
+    version: 5.6.16
+    release: ""
+    releasedAt: "2024-02-02T17:06:11.796057Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:57bac6d1c8adf6395831d689d068e213ad6642e2a31e97c7a008ebcd436b052e
+    relatedImages: []
+    version: 5.7.11
+    release: ""
+    releasedAt: "2024-02-05T14:24:20.807212Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:a864701d55e39b04803319d699244a5b3fffad80e821eca2fc2bc1ef220e91ac
+    relatedImages: []
+    version: 5.8.3
+    release: ""
+    releasedAt: "2024-02-05T20:53:03.964872Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:32909d88404557cf22a9b155b09df6ceca0d65c6ec6116954bf8655c8b52989d
+    relatedImages: []
+    version: 5.8.4
+    release: ""
+    releasedAt: "2024-02-29T07:57:37.02938Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:32c00839a9feaf7d3a3365a62562f0348fc3d72f9c8052616539d0161d88a574
+    relatedImages: []
+    version: 5.7.12
+    release: ""
+    releasedAt: "2024-03-24T09:43:10.636277Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:d36b3eab11c47b4a26fadef95d4e25eec9d005579886c17b51e614679ca98c58
+    relatedImages: []
+    version: 5.6.17
+    release: ""
+    releasedAt: "2024-03-25T09:32:11.814657Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:d675e086761771ad5e70a3ddce30f96f0a91bd443de307a179b7c1342a7eb5a8
+    relatedImages: []
+    version: 5.8.5
+    release: ""
+    releasedAt: "2024-03-25T11:01:49.878491Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:acddda7732d887c0b1e581c2f957dd20625972b06ee3374991b3d217abd57aad
+    relatedImages: []
+    version: 5.9.0
+    release: ""
+    releasedAt: "2024-03-30T11:47:03.066352Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:c8911464815a24eda894efc23aaa2bd6c417e0233e964c09c2c8016387530923
+    relatedImages: []
+    version: 5.6.18
+    release: ""
+    releasedAt: "2024-04-26T04:02:32.947449Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:b8f7447cea88a30d89bc8ade1f5ff5141f622be6a243cb5528a7375a211691fb
+    relatedImages: []
+    version: 5.8.6
+    release: ""
+    releasedAt: "2024-04-26T04:33:45.222991Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:5052bba9c7eba5ad23b72f73429ecdbc2de555d9138a2d77ec271297b5030ffd
+    relatedImages: []
+    version: 5.7.13
+    release: ""
+    releasedAt: "2024-04-27T04:36:34.847748Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:b9b0d5bfcb535abd58c2f69228b1b11680c4deffcc28939562e04be64f3f1819
+    relatedImages: []
+    version: 5.9.1
+    release: ""
+    releasedAt: "2024-04-28T09:09:40.97037Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:1ac77ae26db0a0a62541ea3997d43d06b6b77cba6b3cbb62630723d731c088c1
+    relatedImages: []
+    version: 5.6.19
+    release: ""
+    releasedAt: "2024-05-15T17:52:18.316099Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:6349e0dfa8a940002570e6a0d5d7b91cf9f1fc2186da823150be95c55e7eec64
+    relatedImages: []
+    version: 5.7.14
+    release: ""
+    releasedAt: "2024-05-16T11:16:36.990401Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:c47be5a5806c99e8aff2ef30c723cb922a702645b898a58ab83a6d8d6e35e95e
+    relatedImages: []
+    version: 5.8.7
+    release: ""
+    releasedAt: "2024-05-16T11:42:24.732441Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:a75b8dc9936e65b2ffbcca73a47456b38e6a2dc406f39577c6646ce8d33c5238
+    relatedImages: []
+    version: 5.9.2
+    release: ""
+    releasedAt: "2024-05-20T20:17:10.867729Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:0210d02e0ac01d45a1075f647114942d3949915de7158c9a5076522997aeeb27
+    relatedImages: []
+    version: 5.7.15
+    release: ""
+    releasedAt: "2024-06-07T06:23:46.768163Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:5ce43610f34608d64ff6499d8950461744e7ce83a0c03750c957133b7fe3e402
+    relatedImages: []
+    version: 5.6.20
+    release: ""
+    releasedAt: "2024-06-07T09:02:35.971384Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:436040b1c5c16252c30ac31d1f4ec19132652f8b235ca9587130a0215ef06081
+    relatedImages: []
+    version: 5.8.8
+    release: ""
+    releasedAt: "2024-06-07T09:05:34.531124Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:738c07b19b35261095f6e3e452d8e31b96afa2ca56b2da873402b4ab3cde60c1
+    relatedImages: []
+    version: 5.9.3
+    release: ""
+    releasedAt: "2024-06-14T06:44:46.142703Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:4b3573eac060af0613057a61edeafb4056b6079f94f2b2def1ae433be205bf50
+    relatedImages: []
+    version: 5.8.9
+    release: ""
+    releasedAt: "2024-07-15T04:22:35.589575Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:f0c7f973a6671922dba09d54e3e375ba92e709d9748bc3aa0917950c447d476b
+    relatedImages: []
+    version: 5.6.21
+    release: ""
+    releasedAt: "2024-07-16T13:55:59.589033Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:29882b55835d16fb82f5393960f326c7966c79437f5bca5f66599c0ea1c62d7c
+    relatedImages: []
+    version: 5.8.10
+    release: ""
+    releasedAt: "2024-07-18T04:31:55.495822Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:4692c28a730de2a413042372647da244cfeca7012e0e9ff4c7f594fa34b535c9
+    relatedImages: []
+    version: 5.9.4
+    release: ""
+    releasedAt: "2024-07-19T06:30:37.951603Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:8e041e0bd12b8403c4966bdd576e7971111966f6b46b4d66cdd91e0d82373e36
+    relatedImages: []
+    version: 5.9.5
+    release: ""
+    releasedAt: "2024-08-07T07:42:09.079038Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:8618787a13c2d857f5463eb0f49f71e8a763265a35352a27d3ca1001fff653ec
+    relatedImages: []
+    version: 5.8.11
+    release: ""
+    releasedAt: "2024-08-07T08:47:32.004077Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:1399f5237fdecf7bc891ea652ff99acef8b9e1a322b010b424e3cbd8d84175e8
+    relatedImages: []
+    version: 5.6.22
+    release: ""
+    releasedAt: "2024-08-07T20:08:45.331254Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:9e0f26015a26ec63f5b27226df7d8dec9da6a41f188540880b2660530183b03d
+    relatedImages: []
+    version: 5.6.23
+    release: ""
+    releasedAt: "2024-08-29T18:04:18.330145Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:188322417d03ef6778ade9b98810570a02041429c99232b2dbf8d3b1259b0660
+    relatedImages: []
+    version: 5.8.12
+    release: ""
+    releasedAt: "2024-09-04T17:02:17.561837Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:e04ce5eaf023bd299b40c3c7666087404e41f6cc9a2342247024d8ac89bb87b0
+    relatedImages: []
+    version: 5.9.6
+    release: ""
+    releasedAt: "2024-09-04T17:55:12.729143Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:9fac78aae457a41a045d7c239895c6558c4a5705087613e6ece4556eba1504e0
+    relatedImages: []
+    version: 6.0.0
+    release: ""
+    releasedAt: "2024-09-17T15:39:04.681171Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:9fb2edd638ad211f2198c4525ff3b8bf0a0bd3063a2bf8970f64542cacb72297
+    relatedImages: []
+    version: 5.8.13
+    release: ""
+    releasedAt: "2024-09-24T17:57:53.157878Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:dd42568971957340e1b9ca783f06354609dc5880a9d7d6bcd7895f3fd1d4276e
+    relatedImages: []
+    version: 5.6.24
+    release: ""
+    releasedAt: "2024-09-27T17:20:25.95198Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:3b1f61f40556c931ec5bc8a99a6c7917bc5cb7dd6fe13ef8cd2603882d0eee58
+    relatedImages: []
+    version: 5.9.7
+    release: ""
+    releasedAt: "2024-09-28T15:09:37.152462Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:629fd21c443fbe1a520215a50407b038d9edada515c7b862c27cbc3bd641bb69
+    relatedImages: []
+    version: 5.9.8
+    release: ""
+    releasedAt: "2024-10-17T04:43:07.449457Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:068911d44072c4d62209e2bb417664d69addd7bda34574a616878480461c4f53
+    relatedImages: []
+    version: 5.6.25
+    release: ""
+    releasedAt: "2024-10-19T15:12:09.754815Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:d5e21eba289036c78323183f242aaad7dcef177e2f3cb2e814c27889a4ecaf47
+    relatedImages: []
+    version: 6.0.1
+    release: ""
+    releasedAt: "2024-10-21T09:32:25.001234Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:15c9704c56d031a30e442ff2bc3d148b7d7f72723ac4e55b83dfbe84b851618e
+    relatedImages: []
+    version: 5.8.14
+    release: ""
+    releasedAt: "2024-10-21T09:35:35.866212Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:dfcdfdbd88fccd8e364e33e75a78dd6cbcb22835db5989187d2135937282aecb
+    relatedImages: []
+    version: 5.8.15
+    release: ""
+    releasedAt: "2024-11-06T22:29:41.76351Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:4a3c1daf16e39b0a2ba14106ee05b251156b9c59578ef0b33f1b37dc0c14c72a
+    relatedImages: []
+    version: 6.1.0
+    release: ""
+    releasedAt: "2024-11-07T02:01:37.80579Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:0adb523b33585213db8831ebdfa11afe7fa27d9ee1a01dd8773df867786ed63e
+    relatedImages: []
+    version: 5.6.26
+    release: ""
+    releasedAt: "2024-11-07T23:11:03.562392Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:9ab0844897462a71c06f7bb95fcd40d67eeb73f71f48417107348962cd1ba135
+    relatedImages: []
+    version: 5.9.9
+    release: ""
+    releasedAt: "2024-11-07T23:15:37.416082Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:a1891080cfe8ab25d9b8bcef1e960407879bdb8f46ce7ee577a13f3d5136065e
+    relatedImages: []
+    version: 6.0.2
+    release: ""
+    releasedAt: "2024-11-08T20:46:39.714291Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:58473a2057e6afafb0c10e6e90eb844a489c439511963fbce58c6e1a5e48eb1c
+    relatedImages: []
+    version: 5.8.16
+    release: ""
+    releasedAt: "2024-12-11T01:25:20.984921Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:10cf06ab045cd5621c85b7538c29d62b4a584cebeffd5a3801a61f7f9fa59e89
+    relatedImages: []
+    version: 5.9.10
+    release: ""
+    releasedAt: "2024-12-13T17:54:45.045695Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:2e00756b71612c2d08cb9f9f1ba7bb9507a460ccb9c0c4c82458f8fc42a72dfd
+    relatedImages: []
+    version: 5.6.27
+    release: ""
+    releasedAt: "2025-01-08T19:20:30.93138Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:9eb98a02b08d3694075fb68e4e107f7595a0d26f718a22477567ba45724c6534
+    relatedImages: []
+    version: 6.1.1
+    release: ""
+    releasedAt: "2025-01-09T16:00:29.087689Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:c2b07b89547959c8c68bae32f2176aef2e47e69b711a8858cac436263cf01de6
+    relatedImages: []
+    version: 6.0.3
+    release: ""
+    releasedAt: "2025-01-09T16:24:28.081623Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:a13f176c4cbcea42b0c3fee19baf686ee65d531597e2a794fd51c2c66cb9e61a
+    relatedImages: []
+    version: 6.1.2
+    release: ""
+    releasedAt: "2025-02-03T23:25:54.160493Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:a919953767cb3a92d0a342c6b4d970bf3faa0802381cc40f28eadc2a4f57cb6d
+    relatedImages: []
+    version: 6.0.4
+    release: ""
+    releasedAt: "2025-02-05T10:31:28.18802Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:3cf2582ff1b25552465dff4fe83664c766a5396d8bd966460abaae522dc7c8f5
+    relatedImages: []
+    version: 5.8.17
+    release: ""
+    releasedAt: "2025-02-06T14:12:43.197282Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:05d36790c431c5bcdce4ac9b0e52aa1cb05fd4b544102733d49b74d23571f74c
+    relatedImages: []
+    version: 5.9.11
+    release: ""
+    releasedAt: "2025-02-06T19:15:17.013697Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:3d02a6f1b836af505cee3763604a0789d24ba773c6f3cd4a3285694a493b6fd9
+    relatedImages: []
+    version: 5.8.18
+    release: ""
+    releasedAt: "2025-02-26T13:46:38.69432Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:0fd4b24fdc4ae0777f8c520128396a453d38970f47a4c9cf56e7bfcc27c73e19
+    relatedImages: []
+    version: 5.9.12
+    release: ""
+    releasedAt: "2025-02-26T13:46:47.052937Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:975e64a6faa854bb88938eebf763a03e6a39a6546565e6eaa7fc3bac3663d52a
+    relatedImages: []
+    version: 6.0.5
+    release: ""
+    releasedAt: "2025-02-26T23:26:22.169694Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:08459f71825f29506113b6125510075a88dfd0cb4e7fc56939929c4732702498
+    relatedImages: []
+    version: 6.1.3
+    release: ""
+    releasedAt: "2025-03-03T12:57:56.391882Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:da7f1fcd657cd106dc7d9797022c3af040c4f662fe43732b0c502085b2f49b1a
+    relatedImages: []
+    version: 6.2.0
+    release: ""
+    releasedAt: "2025-03-05T19:00:47.864348Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:2ac22e0a4469dbd521e501f94aed9d6f6cfd42c380295fccda70845e624cc344
+    relatedImages: []
+    version: 6.1.4
+    release: ""
+    releasedAt: "2025-03-18T08:12:02.101832Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:04347c5ffe4381dfc2ec48cafa04b65cd85b732ab32c361a03acadc6b12486c5
+    relatedImages: []
+    version: 6.0.6
+    release: ""
+    releasedAt: "2025-03-18T13:43:56.635945Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:c18fdbfb3c5afd08dced9924a4850b5dd8bcdfe034760ec1ea796ced4bd40172
+    relatedImages: []
+    version: 5.8.19
+    release: ""
+    releasedAt: "2025-03-27T02:59:32.279305Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:83a7739027f372c2656818afb0667aa9e4bee3e8e57caf943398763e0bd95a7d
+    relatedImages: []
+    version: 6.0.7
+    release: ""
+    releasedAt: "2025-04-08T12:02:34.564875Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:dbabb3b3c43e5084731aebcd518fee508d6f7bdc2b0a5dc8d4bfe59ed10b033f
+    relatedImages: []
+    version: 5.9.13
+    release: ""
+    releasedAt: "2025-04-08T23:35:42.223143Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:8ff77eeae069d78708d243efa1d0fcb81307fe2f927335a44f559ab6d5bcd260
+    relatedImages: []
+    version: 6.1.5
+    release: ""
+    releasedAt: "2025-04-14T23:46:02.613673Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:54f134e2f5978d68af40496e161c511bad7a5c23a48c56853b013d656dcf2422
+    relatedImages: []
+    version: 6.2.1
+    release: ""
+    releasedAt: "2025-04-15T00:36:51.483092Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:ed9c2bc281f1452cae0faed733e43aaedc61c8311c2c736b10fcc03e258e4985
+    relatedImages: []
+    version: 6.1.6
+    release: ""
+    releasedAt: "2025-04-23T06:50:39.6222Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:b0745d4cd34024cf712652d071ee92015f5baa0f7409f1682087e274f49e0330
+    relatedImages: []
+    version: 6.0.8
+    release: ""
+    releasedAt: "2025-04-23T10:53:09.652485Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:bd26ed53e4d68c0007d5a6a9f8a5258d7a0f87d499d7173d3c197ed873ee48ed
+    relatedImages: []
+    version: 6.2.2
+    release: ""
+    releasedAt: "2025-04-23T13:41:31.565848Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:b1ec0d12c52f251e22a44ae8dcaa4e476e266256ac75b90694861c61043633f3
+    relatedImages: []
+    version: 5.8.20
+    release: ""
+    releasedAt: "2025-05-06T17:23:20.236285Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:96f911abf6ddb2a502e4e6a7b567df0305b2ad9047441322b33a6df23110a058
+    relatedImages: []
+    version: 5.9.14
+    release: ""
+    releasedAt: "2025-05-08T19:31:05.361625Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:d4e11ad47a39a05b8d4bc4d03c38f886e3df17688999167d14511f95a3036836
+    relatedImages: []
+    version: 5.9.15
+    release: ""
+    releasedAt: "2025-06-03T18:22:19.097952Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:d2b45144fa9be0bbce2a610e8677d391704b4a87e50ffd442a1f8c62d59d4312
+    relatedImages: []
+    version: 6.1.7
+    release: ""
+    releasedAt: "2025-06-04T11:41:16.372702Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:b4f3f49b22e2381504b36fe558709b966fa63e59d36eeffebdebe4be18a7587c
+    relatedImages: []
+    version: 6.0.9
+    release: ""
+    releasedAt: "2025-06-04T11:42:04.972397Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:efdfa7b2492d880c88f372b20720fc20cb5994256ef78d4ec2050e2b82e9c153
+    relatedImages: []
+    version: 6.2.3
+    release: ""
+    releasedAt: "2025-06-04T11:46:48.268958Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:4dfeb0f8e783818fa27145a37f5034bac78ded94dd83ff2422d304b8d4f750b0
+    relatedImages: []
+    version: 5.8.21
+    release: ""
+    releasedAt: "2025-06-08T04:31:26.121948Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:fe0e119828acbfd66a6a2a299eca873ff00f012b22c7e8ac9b40f18cdadc2760
+    relatedImages: []
+    version: 6.3.0
+    release: ""
+    releasedAt: "2025-07-09T15:18:23.90745Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:94f256283b590b46946eb090170b62b824331c1d969102d214f04eb6537227e4
+    relatedImages: []
+    version: 6.2.4
+    release: ""
+    releasedAt: "2025-07-31T19:34:20.685043Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:b4e4d262801b8ff616710075ff05689a8956e975e8ac563e50204a26d1725458
+    relatedImages: []
+    version: 6.1.8
+    release: ""
+    releasedAt: "2025-09-03T20:59:52.215984Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:c8ac9848bc6beea8217b235df07e3366602088430d00839a291b5c24bd29d946
+    relatedImages: []
+    version: 6.0.10
+    release: ""
+    releasedAt: "2025-09-04T12:53:38.728028Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:8c6decb25972dffb37917fb5f5a91ea05fb21b87823eb75807d8c601c12fc1bb
+    relatedImages: []
+    version: 6.3.1
+    release: ""
+    releasedAt: "2025-09-10T15:50:30.768669Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:afc1e5bdade3ff0e3918fffb8fafb2700dfba7c473f99a2f347cfc7f889c8678
+    relatedImages: []
+    version: 6.2.5
+    release: ""
+    releasedAt: "2025-09-11T10:54:01.197069Z"
+retractions: []

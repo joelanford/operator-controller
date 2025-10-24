@@ -2,10 +2,12 @@ package resolve
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	mmsemver "github.com/Masterminds/semver/v3"
 	bsemver "github.com/blang/semver/v4"
@@ -16,11 +18,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
+	"github.com/operator-framework/operator-registry/alpha/property"
 
 	ocv1 "github.com/operator-framework/operator-controller/api/v1"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/bundleutil"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/catalogmetadata/compare"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/catalogmetadata/filter"
+	"github.com/operator-framework/operator-controller/internal/shared/fbc"
 	filterutil "github.com/operator-framework/operator-controller/internal/shared/util/filter"
 )
 
@@ -81,7 +85,7 @@ func (r *CatalogResolver) Resolve(ctx context.Context, ext *ocv1.ClusterExtensio
 	listOptions := []client.ListOption{
 		client.MatchingLabelsSelector{Selector: selector},
 	}
-	if err := r.WalkCatalogsFunc(ctx, packageName, func(ctx context.Context, cat *ocv1.ClusterCatalog, packageFBC *declcfg.DeclarativeConfig, err error) error {
+	if err := r.WalkCatalogsFunc(ctx, packageName, func(ctx context.Context, cat *ocv1.ClusterCatalog, packageFBC []declcfg.Meta, err error) error {
 		if err != nil {
 			return fmt.Errorf("error getting package %q from catalog %q: %w", packageName, cat.Name, err)
 		}
@@ -89,61 +93,151 @@ func (r *CatalogResolver) Resolve(ctx context.Context, ext *ocv1.ClusterExtensio
 		cs := catStat{CatalogName: cat.Name}
 		catStats = append(catStats, &cs)
 
-		if isFBCEmpty(packageFBC) {
+		if len(packageFBC) == 0 {
 			return nil
 		}
 
-		cs.PackageFound = true
-		cs.TotalBundles = len(packageFBC.Bundles)
+		packageV2Schema := "olm.package.v2"
+		fbcPackagesV2, err := parseMetas[fbc.PackageV2](packageFBC, fbc.SchemaPackageV2)
+		if err != nil {
+			return fmt.Errorf("error parsing %s data %q from catalog %q: %w", packageV2Schema, packageName, cat.Name, err)
+		}
+		var (
+			thisBundle      declcfg.Bundle
+			thisDeprecation *declcfg.Deprecation
+		)
+		if len(fbcPackagesV2) > 0 {
+			cs.PackageFound = true
+			cs.TotalBundles = len(fbcPackagesV2[0].Bundles)
 
-		var predicates []filterutil.Predicate[declcfg.Bundle]
-		if len(channels) > 0 {
-			channelSet := sets.New(channels...)
-			filteredChannels := slices.DeleteFunc(packageFBC.Channels, func(c declcfg.Channel) bool {
-				return !channelSet.Has(c.Name)
+			g, err := fbc.NewGraph(fbc.GraphConfig{
+				Packages:     fbcPackagesV2,
+				AsOf:         time.Now(),
+				IncludePreGA: false,
 			})
-			predicates = append(predicates, filter.InAnyChannel(filteredChannels...))
-		}
-
-		if versionRangeConstraints != nil {
-			predicates = append(predicates, filter.InMastermindsSemverRange(versionRangeConstraints))
-		}
-
-		if ext.Spec.Source.Catalog.UpgradeConstraintPolicy != ocv1.UpgradeConstraintPolicySelfCertified && installedBundle != nil {
-			successorPredicate, err := filter.SuccessorsOf(*installedBundle, packageFBC.Channels...)
 			if err != nil {
-				return fmt.Errorf("error finding upgrade edges: %w", err)
+				return fmt.Errorf("error building graph for package %q from catalog %q: %w", packageName, cat.Name, err)
 			}
-			predicates = append(predicates, successorPredicate)
-		}
 
-		// Apply the predicates to get the candidate bundles
-		packageFBC.Bundles = filterutil.InPlace(packageFBC.Bundles, filterutil.And(predicates...))
-		cs.MatchedBundles = len(packageFBC.Bundles)
-		if len(packageFBC.Bundles) == 0 {
-			return nil
-		}
-
-		// If this package has a deprecation, we:
-		//   1. Want to sort deprecated bundles to the end of the list
-		//   2. Want to keep track of it so that we can return it if we end
-		//      up resolving a bundle from this package.
-		byDeprecation := func(a, b declcfg.Bundle) int { return 0 }
-		var thisDeprecation *declcfg.Deprecation
-		if len(packageFBC.Deprecations) > 0 {
-			thisDeprecation = &packageFBC.Deprecations[0]
-			byDeprecation = compare.ByDeprecationFunc(*thisDeprecation)
-		}
-
-		// Sort the bundles by deprecation and then by version
-		slices.SortStableFunc(packageFBC.Bundles, func(a, b declcfg.Bundle) int {
-			if lessDep := byDeprecation(a, b); lessDep != 0 {
-				return lessDep
+			predicates := []fbc.NodePredicate{
+				fbc.PackageNodes(packageName),
+				fbc.NodeInRange(asRange(versionRangeConstraints)),
 			}
-			return compare.ByVersion(a, b)
-		})
+			if ext.Spec.Source.Catalog.UpgradeConstraintPolicy != ocv1.UpgradeConstraintPolicySelfCertified && installedBundle != nil {
+				vr := fbc.VersionRelease{
+					Version: bsemver.MustParse(installedBundle.Version),
+					Release: nil,
+				}
+				from := g.FirstNodeMatching(fbc.ExactVersionRelease(vr))
+				predicates = append(predicates, fbc.OrNodes(
+					fbc.SuccessorOf(from),
+					fbc.IsNode(from),
+				))
+			}
 
-		thisBundle := packageFBC.Bundles[0]
+			// Apply the predicates to get the candidate bundles
+			matchingNodes := slices.Collect(g.NodesMatching(fbc.AndNodes(predicates...)))
+			cs.MatchedBundles = len(matchingNodes)
+			if len(matchingNodes) == 0 {
+				return nil
+			}
+
+			// Sort the bundles by deprecation and then by version
+			slices.SortStableFunc(matchingNodes, func(a, b *fbc.Node) int {
+				return b.Compare(a)
+			})
+
+			thisNode := matchingNodes[0]
+			thisBundle = declcfg.Bundle{
+				Schema:  declcfg.SchemaBundle,
+				Package: packageName,
+				Name:    thisNode.NVR(),
+				Image:   thisNode.ImageReference.String(),
+				Properties: []property.Property{
+					property.MustBuildPackage(thisNode.Name, thisNode.VersionRelease.Version.String()),
+				},
+			}
+
+			if thisNode.Retracted {
+				thisDeprecation = &declcfg.Deprecation{
+					Schema:  declcfg.SchemaDeprecation,
+					Package: packageName,
+					Entries: []declcfg.DeprecationEntry{
+						{
+							Reference: declcfg.PackageScopedReference{
+								Schema: declcfg.SchemaBundle,
+								Name:   thisNode.NVR(),
+							},
+							Message: fmt.Sprintf("Bundle %s has been retracted. Immediate upgrade is recommended.", thisNode.NVR()),
+						},
+					},
+				}
+			}
+		} else {
+			fbcChannels, err := parseMetas[declcfg.Channel](packageFBC, declcfg.SchemaChannel)
+			if err != nil {
+				return fmt.Errorf("error parsing %s data in package %q from catalog %q: %w", declcfg.SchemaChannel, packageName, cat.Name, err)
+			}
+			fbcBundles, err := parseMetas[declcfg.Bundle](packageFBC, declcfg.SchemaBundle)
+			if err != nil {
+				return fmt.Errorf("error parsing %s data in package %q from catalog %q: %w", declcfg.SchemaBundle, packageName, cat.Name, err)
+			}
+			fbcDeprecations, err := parseMetas[declcfg.Deprecation](packageFBC, declcfg.SchemaDeprecation)
+			if err != nil {
+				return fmt.Errorf("error parsing %s data in package %q from catalog %q: %w", declcfg.SchemaDeprecation, packageName, cat.Name, err)
+			}
+
+			cs.PackageFound = true
+			cs.TotalBundles = len(fbcBundles)
+
+			var predicates []filterutil.Predicate[declcfg.Bundle]
+			if len(channels) > 0 {
+				channelSet := sets.New(channels...)
+				filteredChannels := slices.DeleteFunc(fbcChannels, func(c declcfg.Channel) bool {
+					return !channelSet.Has(c.Name)
+				})
+				predicates = append(predicates, filter.InAnyChannel(filteredChannels...))
+			}
+
+			if versionRangeConstraints != nil {
+				predicates = append(predicates, filter.InMastermindsSemverRange(versionRangeConstraints))
+			}
+
+			if ext.Spec.Source.Catalog.UpgradeConstraintPolicy != ocv1.UpgradeConstraintPolicySelfCertified && installedBundle != nil {
+				successorPredicate, err := filter.SuccessorsOf(*installedBundle, fbcChannels...)
+				if err != nil {
+					return fmt.Errorf("error finding upgrade edges: %w", err)
+				}
+				predicates = append(predicates, successorPredicate)
+			}
+
+			// Apply the predicates to get the candidate bundles
+			fbcBundles = filterutil.InPlace(fbcBundles, filterutil.And(predicates...))
+			cs.MatchedBundles = len(fbcBundles)
+			if len(fbcBundles) == 0 {
+				return nil
+			}
+
+			// If this package has a deprecation, we:
+			//   1. Want to sort deprecated bundles to the end of the list
+			//   2. Want to keep track of it so that we can return it if we end
+			//      up resolving a bundle from this package.
+			byDeprecation := func(a, b declcfg.Bundle) int { return 0 }
+			if len(fbcDeprecations) > 0 {
+				thisDeprecation = &fbcDeprecations[0]
+				byDeprecation = compare.ByDeprecationFunc(*thisDeprecation)
+			}
+
+			// Sort the bundles by deprecation and then by version
+			slices.SortStableFunc(fbcBundles, func(a, b declcfg.Bundle) int {
+				if lessDep := byDeprecation(a, b); lessDep != 0 {
+					return lessDep
+				}
+				return compare.ByVersion(a, b)
+			})
+
+			thisBundle = fbcBundles[0]
+		}
 
 		if len(resolvedBundles) != 0 {
 			// We've already found one or more package candidates
@@ -260,11 +354,11 @@ func isDeprecated(bundle declcfg.Bundle, deprecation *declcfg.Deprecation) bool 
 	return false
 }
 
-type CatalogWalkFunc func(context.Context, *ocv1.ClusterCatalog, *declcfg.DeclarativeConfig, error) error
+type CatalogWalkFunc func(context.Context, *ocv1.ClusterCatalog, []declcfg.Meta, error) error
 
 func CatalogWalker(
 	listCatalogs func(context.Context, ...client.ListOption) ([]ocv1.ClusterCatalog, error),
-	getPackage func(context.Context, *ocv1.ClusterCatalog, string) (*declcfg.DeclarativeConfig, error),
+	getPackage func(context.Context, *ocv1.ClusterCatalog, string) ([]declcfg.Meta, error),
 ) func(ctx context.Context, packageName string, f CatalogWalkFunc, catalogListOpts ...client.ListOption) error {
 	return func(ctx context.Context, packageName string, f CatalogWalkFunc, catalogListOpts ...client.ListOption) error {
 		l := log.FromContext(ctx)
@@ -300,17 +394,35 @@ func CatalogWalker(
 	}
 }
 
-func isFBCEmpty(fbc *declcfg.DeclarativeConfig) bool {
-	if fbc == nil {
-		return true
-	}
-	return len(fbc.Packages) == 0 && len(fbc.Channels) == 0 && len(fbc.Bundles) == 0 && len(fbc.Deprecations) == 0 && len(fbc.Others) == 0
-}
-
 func mapSlice[I any, O any](in []I, f func(I) O) []O {
 	out := make([]O, len(in))
 	for i := range in {
 		out[i] = f(in[i])
 	}
 	return out
+}
+
+func parseMetas[T any](metas []declcfg.Meta, schema string) ([]T, error) {
+	out := make([]T, 0, len(metas))
+	for _, meta := range metas {
+		if meta.Schema == schema {
+			var t T
+			if err := json.Unmarshal(meta.Blob, &t); err != nil {
+				return nil, err
+			}
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
+func asRange(constraints *mmsemver.Constraints) bsemver.Range {
+	if constraints == nil {
+		return func(bsemver.Version) bool { return true }
+	}
+	return func(b bsemver.Version) bool {
+		pre := mapSlice(b.Pre, func(pr bsemver.PRVersion) string { return pr.String() })
+		mmv := mmsemver.New(b.Major, b.Minor, b.Patch, strings.Join(pre, "."), strings.Join(b.Build, "."))
+		return constraints.Check(mmv)
+	}
 }

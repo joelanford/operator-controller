@@ -1,0 +1,799 @@
+---
+schema: olm.package.v2
+package: kubevirt-hyperconverged
+versionStreams:
+  - version: "4.19"
+    minimumUpdateVersion: 4.18.8
+    lifecycleDates:
+      fullSupport: "2025-06-17"
+      maintenance: "2026-01-21"
+      eol: "2026-12-17"
+    supportedPlatformVersions:
+      - "4.19"
+  - version: "4.18"
+    minimumUpdateVersion: 4.17.5
+    lifecycleDates:
+      fullSupport: "2025-02-25"
+      maintenance: "2025-09-17"
+      extensions:
+        - "2026-08-25"
+        - "2027-02-25"
+      eol: "2028-02-25"
+    supportedPlatformVersions:
+      - "4.18"
+    requiresUpdatePlatformVersions:
+      - "4.19"
+  - version: "4.17"
+    minimumUpdateVersion: 4.16.4
+    lifecycleDates:
+      fullSupport: "2024-10-15"
+      maintenance: "2025-05-25"
+      eol: "2026-04-15"
+    supportedPlatformVersions:
+      - "4.17"
+    requiresUpdatePlatformVersions:
+      - "4.18"
+  - version: "4.16"
+    minimumUpdateVersion: 4.15.3
+    lifecycleDates:
+      fullSupport: "2024-07-09"
+      maintenance: "2025-01-15"
+      extensions:
+        - "2026-01-09"
+        - "2026-07-09"
+      eol: "2027-07-09"
+    supportedPlatformVersions:
+      - "4.16"
+    requiresUpdatePlatformVersions:
+      - "4.17"
+      - "4.18"
+  - version: "4.15"
+    minimumUpdateVersion: 4.14.4
+    lifecycleDates:
+      fullSupport: "2024-02-28"
+      maintenance: "2024-10-09"
+      eol: "2025-08-28"
+    supportedPlatformVersions:
+      - "4.15"
+    requiresUpdatePlatformVersions:
+      - "4.16"
+  - version: "4.14"
+    minimumUpdateVersion: 4.13.4
+    lifecycleDates:
+      fullSupport: "2023-11-08"
+      maintenance: "2024-05-28"
+      extensions:
+        - "2025-05-01"
+        - "2025-10-31"
+      eol: "2026-10-31"
+    supportedPlatformVersions:
+      - "4.14"
+    requiresUpdatePlatformVersions:
+      - "4.15"
+      - "4.16"
+  - version: "4.13"
+    minimumUpdateVersion: 4.12.3
+    lifecycleDates:
+      fullSupport: "2023-05-17"
+      maintenance: "2024-01-31"
+      eol: "2024-11-17"
+    supportedPlatformVersions:
+      - "4.13"
+    requiresUpdatePlatformVersions:
+      - "4.14"
+  - version: "4.12"
+    minimumUpdateVersion: 4.11.2
+    lifecycleDates:
+      fullSupport: "2023-01-24"
+      maintenance: "2023-08-17"
+      extensions:
+        - "2024-07-24"
+        - "2025-01-24"
+      eol: "2026-01-24"
+    supportedPlatformVersions:
+      - "4.12"
+    requiresUpdatePlatformVersions:
+      - "4.13"
+      - "4.14"
+bundles:
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:73680901c7733ba27f729fd6475971e0909c2fe9efacf74d556f961a1494274e
+    relatedImages: []
+    version: 4.12.0
+    release: ""
+    releasedAt: "2022-12-17T09:02:34.100635Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:bf2399e53c29c540fc689afd3e15048f08c6137b62e1674a8beca0dd61f6254d
+    relatedImages: []
+    version: 4.12.1
+    release: ""
+    releasedAt: "2023-02-10T00:26:54.658308Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:581e058e146557b463827571e4052461a613fb53759cb45de6230abfa85cc6f0
+    relatedImages: []
+    version: 4.12.2
+    release: ""
+    releasedAt: "2023-03-27T16:30:16.94279Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:60e89d7a99ff9f20e974430b802dd724a3bb6fa1e01e5a62daad98ac487b3063
+    relatedImages: []
+    version: 4.13.0
+    release: ""
+    releasedAt: "2023-04-27T13:26:30.922383Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:a81440dcdd457dfbd571e66aeb107391d23426b5b728dabfbc45dccaee4276e5
+    relatedImages: []
+    version: 4.12.3
+    release: ""
+    releasedAt: "2023-05-15T14:46:29.410296Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:d5446d7245fefff9f24ee02ad3857f19bf363023eb4c78847de0f393cf3627f5
+    relatedImages: []
+    version: 4.13.1
+    release: ""
+    releasedAt: "2023-06-08T13:26:53.930622Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:006bee10a9c9b0b88076a512caa824d5acbcf6611d62114969fa06ad04c1548e
+    relatedImages: []
+    version: 4.12.4
+    release: ""
+    releasedAt: "2023-06-20T15:11:44.230625Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:84b5fd4da869872180f49816068de6b9fd4a30caab352db79922b69874cb4fb8
+    relatedImages: []
+    version: 4.13.2
+    release: ""
+    releasedAt: "2023-06-29T19:14:33.35858Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:fdbd8e15ed4c3893bec71866c5bf37caca1e4cb9c021c77e72b48d28a7357215
+    relatedImages: []
+    version: 4.12.5
+    release: ""
+    releasedAt: "2023-07-25T18:42:51.212103Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:821913dc264e2779f0e7cb1fafc429463a64efe0f895d84ec1850937ac76c403
+    relatedImages: []
+    version: 4.13.3
+    release: ""
+    releasedAt: "2023-08-09T06:49:32.439132Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:d09f210fa79a5aa20fe647ec7fd84a95cf5db41568127fbb035b56deaef3d076
+    relatedImages: []
+    version: 4.12.6
+    release: ""
+    releasedAt: "2023-08-30T06:40:31.379935Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:e507ac13769b706390e037493c58ab5036c31d6a1c3d8a349ae8afdec748399b
+    relatedImages: []
+    version: 4.13.4
+    release: ""
+    releasedAt: "2023-09-13T17:41:24.782864Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:5785719694d2203addeefc201e1b45cc9a7a12c8ec2ea2113024b48f869e8e15
+    relatedImages: []
+    version: 4.12.7
+    release: ""
+    releasedAt: "2023-09-28T08:33:26.224751Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:dddf77c42a60a2837388448d294a65719281984009708a1d90ce328c3d95aa28
+    relatedImages: []
+    version: 4.12.8
+    release: ""
+    releasedAt: "2023-10-23T08:38:47.190186Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:7314d53f44b9058a2a41620ea57c8eafef5161218d412b8ad7353fb570b5ae64
+    relatedImages: []
+    version: 4.13.5
+    release: ""
+    releasedAt: "2023-10-24T00:15:11.538111Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:d3cbd39d4c6fb4d3c46b5155a73842827484b4ea9663751882c8e23085bcbf00
+    relatedImages: []
+    version: 4.14.0
+    release: ""
+    releasedAt: "2023-10-30T13:47:53.097065Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:bd1138c5193f4141105fdf665bf60693631ee6edafa8688cd541534fb8b4da88
+    relatedImages: []
+    version: 4.13.6
+    release: ""
+    releasedAt: "2023-11-20T11:25:48.331845Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:0fca6a25b43a3b0d9bf454a781a952164d4e0ba38fcdd836e03019c349677632
+    relatedImages: []
+    version: 4.14.1
+    release: ""
+    releasedAt: "2023-11-21T05:04:38.975247Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:0aa6c552cc6ef91708bfb61e5bee8a2c2a27c2bf3f0b0a70980e2cfd358bf4a9
+    relatedImages: []
+    version: 4.14.2
+    release: ""
+    releasedAt: "2023-12-18T21:32:17.311248Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:a8cc033664e7c193f3ed7369924d467ef6caa27e734f683fd5eda4aaeb3f5d71
+    relatedImages: []
+    version: 4.12.9
+    release: ""
+    releasedAt: "2024-01-03T13:01:50.260767Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:e2eb0649472b16b0a38284e61df3a01eee7c72d8948dda7c6b29ce79e4e59397
+    relatedImages: []
+    version: 4.13.7
+    release: ""
+    releasedAt: "2024-01-10T20:33:09.530649Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:e88318bada5826fdd96123c0d6719fdc730c2e9eb549325ecb67d015d5f910d5
+    relatedImages: []
+    version: 4.14.3
+    release: ""
+    releasedAt: "2024-01-23T12:44:56.453388Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:eecd15154d57ac46afdb7121a281bb1beea682a8b56c37af02401ac787569a5a
+    relatedImages: []
+    version: 4.15.0
+    release: ""
+    releasedAt: "2024-02-15T00:30:24.658303Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:597ee3514b498ae26e341ca51c66757448e368086377e53ab2311c4283a31e87
+    relatedImages: []
+    version: 4.14.4
+    release: ""
+    releasedAt: "2024-03-06T23:58:49.949533Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:6cfc1534949f881618d22ba15fb72b47e8be04d87d75ae54e6d925fab09d4bf5
+    relatedImages: []
+    version: 4.15.1
+    release: ""
+    releasedAt: "2024-03-13T21:51:55.921422Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:31c64b3f14405a78ea1b133fe0cd0ad740963c8278aa7c7e1a761c1c59c17178
+    relatedImages: []
+    version: 4.12.10
+    release: ""
+    releasedAt: "2024-03-26T13:57:31.855912Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:a9f70d2c64f524a49217c75966c45277e58fe0f8db5b5fddc4a5cbfc95b510cb
+    relatedImages: []
+    version: 4.13.8
+    release: ""
+    releasedAt: "2024-04-01T18:41:12.854988Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:2142ea916b728fc378c5c84ab56848de3cea57cd1307f3d9a13c1a0d650e0242
+    relatedImages: []
+    version: 4.14.5
+    release: ""
+    releasedAt: "2024-04-17T01:44:06.907879Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:3772aa97da0e547848b63fa0d5aeb2e9b2fe67bbaa9e11ee507647a97e2f5297
+    relatedImages: []
+    version: 4.12.11
+    release: ""
+    releasedAt: "2024-04-23T03:29:25.483371Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:1e11af7af3ad71322d77c5dd10cc47349ca7485bb146f7b11d15d402c0904f4a
+    relatedImages: []
+    version: 4.15.2
+    release: ""
+    releasedAt: "2024-05-09T07:34:09.939794Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:e28ac290ef387c96633ce78cc8e60af41872985980b99fb8db9a8fb301298b9a
+    relatedImages: []
+    version: 4.13.9
+    release: ""
+    releasedAt: "2024-05-09T07:40:49.108362Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:1f5c3cc2e658d397be0925593d1d348e8985eb34ef86000263532097e8af57c6
+    relatedImages: []
+    version: 4.14.6
+    release: ""
+    releasedAt: "2024-05-19T10:28:50.167935Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:08cdf0275bc8897882ec8017fe1f21bff75b6a41bf658a91d16e9f22fa787b82
+    relatedImages: []
+    version: 4.12.12
+    release: ""
+    releasedAt: "2024-06-21T03:30:21.693834Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:d92e7e7822ed6db5b267a7ce73e3c86027f67f62920730f799bc9e6232bfdf4e
+    relatedImages: []
+    version: 4.16.0
+    release: ""
+    releasedAt: "2024-07-03T17:26:35.193911Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:9efbf1d76742d1fcba1ec518573da5ad2d8e320feb076292754b34b301f7c686
+    relatedImages: []
+    version: 4.15.3
+    release: ""
+    releasedAt: "2024-07-16T09:06:58.577336Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:3241f6760473d3317b74a387e0d9748355e4b37f2314fac748328736f0850a30
+    relatedImages: []
+    version: 4.16.1
+    release: ""
+    releasedAt: "2024-07-22T10:42:30.152253Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:95fa63b88d19b3ca17ef8eb1fe0e527f94d7f555bfab6c9fc754f8cd0a22da67
+    relatedImages: []
+    version: 4.14.7
+    release: ""
+    releasedAt: "2024-07-22T13:21:18.443146Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:4369842153b0813b53f6519c23b20c55aeb16e65ba7c5d05047452157ec25cd2
+    relatedImages: []
+    version: 4.15.4
+    release: ""
+    releasedAt: "2024-07-30T13:44:31.335799Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:48a43c265e663c1298af6a0381541e78a0cf1fb39e05d11aac66a8ca44c76496
+    relatedImages: []
+    version: 4.13.10
+    release: ""
+    releasedAt: "2024-08-04T14:24:05.960396Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:92d2867a4827a50534d026453a5d138b88d8262b08f6bb5fe39044c2e94f0d2c
+    relatedImages: []
+    version: 4.12.13
+    release: ""
+    releasedAt: "2024-08-16T18:18:07.109495Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:a34d02f29b2756c9dcf1452c6a80a13fa75054011813520b61adf73f096b458e
+    relatedImages: []
+    version: 4.15.5
+    release: ""
+    releasedAt: "2024-08-21T02:03:29.378247Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:3ffdf7d1383a416ee4c7680ff1208956d51127b19bc1951fe5fb283251f088a8
+    relatedImages: []
+    version: 4.16.2
+    release: ""
+    releasedAt: "2024-08-29T10:26:52.831727Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:e25c54e7889eca3a4fd4c3c2a3550aac94c6c3236b6e0f461cb05bb81aaded3b
+    relatedImages: []
+    version: 4.14.8
+    release: ""
+    releasedAt: "2024-09-02T01:42:02.718666Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:1e50525c29afac45120cb23c3cae535f23737044ea51bd086e22000f99858495
+    relatedImages: []
+    version: 4.15.6
+    release: ""
+    releasedAt: "2024-09-09T06:33:59.006135Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:7cd78b29f4cb8d8a95b87649b4d0bad62ff7475bbb1174850fab8d92bc13c259
+    relatedImages: []
+    version: 4.16.3
+    release: ""
+    releasedAt: "2024-09-18T12:32:23.519926Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:918ea06a6592114823f1853e82b01f8fe4ff1ee29599e217e173c6df1e677fda
+    relatedImages: []
+    version: 4.17.0
+    release: ""
+    releasedAt: "2024-10-03T09:45:39.785315Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:a9356c17a8f6539ecf5a3278efe26786d9b90b4f7438176d449bf386000e9d9b
+    relatedImages: []
+    version: 4.12.14
+    release: ""
+    releasedAt: "2024-10-21T16:37:08.892809Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:44d2eb2edf5845f919f8d4829e794f91b137b720014b2b090c933abe29ed9ab4
+    relatedImages: []
+    version: 4.14.9
+    release: ""
+    releasedAt: "2024-10-22T12:59:54.415757Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:6048db6813065034f53683fd7cba7d3c69c067048345b8de2ccf00154be84fd8
+    relatedImages: []
+    version: 4.17.1
+    release: ""
+    releasedAt: "2024-10-29T04:22:07.57237Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:8b258c07e095a8c340e4a1dd5fad42b96220459f05756a232801fe8b1e17befe
+    relatedImages: []
+    version: 4.15.7
+    release: ""
+    releasedAt: "2024-11-06T04:32:41.220026Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:3201c9505cc23910d76ce8cccf4bc6edd483c4032c274a39f096c6c037034025
+    relatedImages: []
+    version: 4.16.4
+    release: ""
+    releasedAt: "2024-11-08T09:41:59.441191Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:f5f55634e44b95ec130ca50a418c021ec2962997cf2c385b4f3a3952100ead51
+    relatedImages: []
+    version: 4.12.15
+    release: ""
+    releasedAt: "2024-11-19T15:30:30.367705Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:e9a270570d3fbc33e6bf3f34c7fd6eecb6195ba0630ca30cc7b7896a1bcc3bba
+    relatedImages: []
+    version: 4.13.11
+    release: ""
+    releasedAt: "2024-11-19T19:23:55.821733Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:1cfc398a6f10976bf733c99e0c58730417201a560dc7ab963ac9867480dfe0cb
+    relatedImages: []
+    version: 4.14.10
+    release: ""
+    releasedAt: "2024-11-23T05:58:43.818553Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:963ac65a66ced508d73181dafcd0e1ac7e978ea121f3109a2c1deba0364ce971
+    relatedImages: []
+    version: 4.17.2
+    release: ""
+    releasedAt: "2024-12-01T23:14:56.794533Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:8407ff779f6a9179d0888f901aca8f6597f27713f1c7267e00bc870774824dcd
+    relatedImages: []
+    version: 4.12.16
+    release: ""
+    releasedAt: "2024-12-05T16:23:13.413974Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:d33c7fc6bdab5141b99b4fcf65f3301d2d90fafb36c3fa993e7c5a5691e6e78a
+    relatedImages: []
+    version: 4.16.5
+    release: ""
+    releasedAt: "2024-12-05T23:43:07.554574Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:d688c012d3962713a27b67ecebf85b1045638e9d164463ca6963ac65d3957072
+    relatedImages: []
+    version: 4.15.8
+    release: ""
+    releasedAt: "2024-12-06T07:11:45.001543Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:1a2244ce4d3faca2b983830a8e6ad0ac6c5d26f37f68262533bef891b51ab151
+    relatedImages: []
+    version: 4.17.3
+    release: ""
+    releasedAt: "2025-01-02T18:57:44.477309Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:082a4be8550e4433102c927f561300f0a81eeabcab3d93a59eb5ed5a2ca69622
+    relatedImages: []
+    version: 4.16.6
+    release: ""
+    releasedAt: "2025-01-21T07:53:41.724803Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:4f100135ccbfc726f4b1887703ef7a08453b48c202ba04c0fb7382f0fec637db
+    relatedImages: []
+    version: 4.17.4
+    release: ""
+    releasedAt: "2025-01-28T21:43:01.027938Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:9c0e80a895b6c4ecc7915123f802132259b0f3c9a87e31aaa98664fef75ebb71
+    relatedImages: []
+    version: 4.14.11
+    release: ""
+    releasedAt: "2025-02-23T19:10:44.215078Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:fbba7d689d01aa749e08bb475eeeb856609e45b379474f57ba68aafbcd0641f4
+    relatedImages: []
+    version: 4.15.9
+    release: ""
+    releasedAt: "2025-02-24T21:44:36.698394Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:d69fe04410df1925cb655f24e1025743804503a8e640428688abc49bb90a21f4
+    relatedImages: []
+    version: 4.18.0
+    release: ""
+    releasedAt: "2025-02-26T10:24:10.408806Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:791c064b565592767427e7e03f7bf72e4ce7523a8aaaa86b021444065c23d896
+    relatedImages: []
+    version: 4.17.5
+    release: ""
+    releasedAt: "2025-02-27T08:59:35.854021Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:cd7b043321d929cfee02cf932450892e3fd8ae8e0cb21f43cf540be39f2764fd
+    relatedImages: []
+    version: 4.17.6
+    release: ""
+    releasedAt: "2025-03-10T15:44:33.131361Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:2c7081761cf975331acd3ab1b052bec82b366f6d7fe13b532a03042c85bee7f9
+    relatedImages: []
+    version: 4.18.1
+    release: ""
+    releasedAt: "2025-03-13T10:15:31.950712Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:bc18d426ee26a48361eb1b0bb9eff6bbcee0acaa11576967ad81e3d49ce7d6cd
+    relatedImages: []
+    version: 4.12.17
+    release: ""
+    releasedAt: "2025-03-19T17:47:11.689012Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:c3ad7328186f17e2334648969c5c24a7fbafe3f2cd53495737f5a5b26fad9718
+    relatedImages: []
+    version: 4.17.7
+    release: ""
+    releasedAt: "2025-03-21T23:08:52.456309Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:f3cbe8b9edab49c818ff51abea80ff2954b56a9742b65d525fbbf6de40d64da0
+    relatedImages: []
+    version: 4.15.10
+    release: ""
+    releasedAt: "2025-03-30T06:30:19.465793Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:bbf53ed9eda2176a1d86682e8ca2ff747e9c5ee1ceeda738533890bcc89ae6f1
+    relatedImages: []
+    version: 4.17.8
+    release: ""
+    releasedAt: "2025-04-03T21:10:54.257511Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:dfee36309bbb8b9681e98999ff96b7bb8a520f331f8ad391de719f1427555262
+    relatedImages: []
+    version: 4.18.2
+    release: ""
+    releasedAt: "2025-04-11T17:09:47.853402Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:0fd2e8b637a6c35991ad6665ce09e318151da1c3c3b1957a52a70afddffa357e
+    relatedImages: []
+    version: 4.17.9
+    release: ""
+    releasedAt: "2025-04-14T13:45:53.792002Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:c000a98cb00a0f7f642f5cdc9ce2ccf2af457e7f2578ef9fc575ecfe602d3e79
+    relatedImages: []
+    version: 4.16.7
+    release: ""
+    releasedAt: "2025-04-15T11:26:27.668837Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:dd1e2ada39e4b364a322157c869d0d5b1ec4e58d6c4980acfbfb0395a0a4041a
+    relatedImages: []
+    version: 4.14.12
+    release: ""
+    releasedAt: "2025-04-20T08:56:35.830239Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:6a07170ff9fd6672426b9def3f72cf89375ac90bf379f2f7f98a9ea2e78aff79
+    relatedImages: []
+    version: 4.17.10
+    release: ""
+    releasedAt: "2025-04-20T13:40:08.051717Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:b299988d00d2f3211f294bc69e18556c2b3b0c822fc303f410301141f8056def
+    relatedImages: []
+    version: 4.17.11
+    release: ""
+    releasedAt: "2025-04-28T07:42:21.766821Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:cb83e177add05461aec25d74c61966653ebc818fac33cff8f007a63bbbd5149c
+    relatedImages: []
+    version: 4.18.3
+    release: ""
+    releasedAt: "2025-05-03T04:54:41.878224Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:23904ee32d1ae72e1fc6e1d090ea054c104c00aecc75960b47c5dc065bf9a56a
+    relatedImages: []
+    version: 4.17.12
+    release: ""
+    releasedAt: "2025-05-06T13:52:41.998002Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:fde3d3c7730516f232ecf14dff61d86bf790ef36e236c35df2b175b22aa27408
+    relatedImages: []
+    version: 4.12.18
+    release: ""
+    releasedAt: "2025-05-10T00:36:33.360398Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:eb48b514d321cd69a6bde2976a3cb194d7df2ca03086f8686d2a179090c1ada2
+    relatedImages: []
+    version: 4.17.13
+    release: ""
+    releasedAt: "2025-05-11T01:25:58.775491Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:eb4d26935d5db146889d3bd8bf682014ab8db40e8c0435aab835239cb4425564
+    relatedImages: []
+    version: 4.16.8
+    release: ""
+    releasedAt: "2025-05-11T02:57:27.881368Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:19bd110aa598e5ff2d8b9b77f21176008e2f824e284f9148b382382c8912448e
+    relatedImages: []
+    version: 4.18.4
+    release: ""
+    releasedAt: "2025-05-11T04:57:43.48047Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:1f68240ff55a088ebf7abe479f63e70988a12f65f33042479a5e4e4fb74b2dcf
+    relatedImages: []
+    version: 4.18.5
+    release: ""
+    releasedAt: "2025-05-16T05:30:26.60413Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:f4818d72a10d17ea61741ec720f3bbcd0d8d119f48fb975734dec4efae94c54b
+    relatedImages: []
+    version: 4.17.14
+    release: ""
+    releasedAt: "2025-05-16T13:28:24.250541Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:b463af548c673e62964cf1dc193613e1c905d8e0f98fda526ee2dcb949d066bb
+    relatedImages: []
+    version: 4.16.9
+    release: ""
+    releasedAt: "2025-05-19T14:46:46.23531Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:b6272d163edf140dc106cf929e8b42a2909e622b92ac31b7abf56d588881cc9e
+    relatedImages: []
+    version: 4.15.11
+    release: ""
+    releasedAt: "2025-05-26T12:17:12.557074Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:ecb9bad9f5e173aaef2201ee9ff15d3031e4e6ee143ae90bdaaa655c1c652521
+    relatedImages: []
+    version: 4.16.10
+    release: ""
+    releasedAt: "2025-06-01T19:57:30.289705Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:20da903e065e547981cf56aa5187ec43fe0f7d3351a03d3e1b3667dd43c6ba35
+    relatedImages: []
+    version: 4.17.15
+    release: ""
+    releasedAt: "2025-06-02T03:27:41.721627Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:97bab0c4bc8dedb481e012714c68aa14ccae937b844e4eca4b242993e1204061
+    relatedImages: []
+    version: 4.18.6
+    release: ""
+    releasedAt: "2025-06-03T05:01:55.998296Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:99310b9eeef837793ddf3cb74d4d0b6a120aaa496c004bcb4b5c8f1193ccb6d6
+    relatedImages: []
+    version: 4.17.16
+    release: ""
+    releasedAt: "2025-06-09T03:26:31.829174Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:6bd17bfbd91ec436dcd6b23e924b29215a06bb6f112c7c054b1d236ed968807e
+    relatedImages: []
+    version: 4.18.7
+    release: ""
+    releasedAt: "2025-06-09T05:01:18.659212Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:556633131cd2040cce1b5ced4287bf0beb40a7c64d3ceb1724d3a99862d58bdc
+    relatedImages: []
+    version: 4.16.11
+    release: ""
+    releasedAt: "2025-06-09T21:42:53.256486Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:1a5fbd79cc8868ce58f6c5a4f81604e8195a0c4129f89b1803308c5f5e7a0e5a
+    relatedImages: []
+    version: 4.17.17
+    release: ""
+    releasedAt: "2025-06-14T03:35:09.771026Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:313a2397bbf92d76128e0c3b79029c5db3531717b077b27525eba3043e6495d1
+    relatedImages: []
+    version: 4.18.8
+    release: ""
+    releasedAt: "2025-06-14T04:59:59.266268Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:f582bb44e8007f0ea394b0102973ab28a8fe838c946b73aee7ae414de7ea1324
+    relatedImages: []
+    version: 4.14.13
+    release: ""
+    releasedAt: "2025-06-16T12:35:36.880862Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:5b83f21da176665b490ced77e0002efee47c1f13f38a08096bfc647b3e5c1a7d
+    relatedImages: []
+    version: 4.16.12
+    release: ""
+    releasedAt: "2025-06-16T20:03:13.639203Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:448af0653c050ac1d080ca2f9ec8779e8ff64deb85735ca3476cea9ef9644d55
+    relatedImages: []
+    version: 4.17.18
+    release: ""
+    releasedAt: "2025-06-22T03:28:14.958524Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:e1c2c58200cdc2d3af7ad79e259a109dd8d73b29664e1146aed510ff3a95002d
+    relatedImages: []
+    version: 4.16.13
+    release: ""
+    releasedAt: "2025-06-22T19:58:30.332193Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:bc2d3895cf626d19f22a89e5b1d54f8328dcf9e8c391d9329da0cb5df0473cbc
+    relatedImages: []
+    version: 4.18.9
+    release: ""
+    releasedAt: "2025-06-27T05:12:28.63324Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:11e642a7da826d9fef0f3d50c223fcbcba576efb540deadfe0819c1f592f3928
+    relatedImages: []
+    version: 4.17.19
+    release: ""
+    releasedAt: "2025-06-27T15:47:42.183323Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:26422431efbd71c1bbc0b5250ac6a879722916fb1307235575905e98857d147f
+    relatedImages: []
+    version: 4.19.1
+    release: ""
+    releasedAt: "2025-07-01T08:40:24.701589Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:c1152fe7a82d0a20d587f61ecf376290ef1c6beb22577a4b0e9030def296571d
+    relatedImages: []
+    version: 4.17.20
+    release: ""
+    releasedAt: "2025-07-04T03:51:54.01409Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:28aaac769170d44232682fd9ee3da338e559438b30b1f427287a745647e7739e
+    relatedImages: []
+    version: 4.16.14
+    release: ""
+    releasedAt: "2025-07-04T20:23:04.567927Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:f46e2b3c4de847e8d9c3cb711131ad5baf6e7030730e161f8ce0fdbcebbc21d1
+    relatedImages: []
+    version: 4.18.10
+    release: ""
+    releasedAt: "2025-07-06T17:16:44.982117Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:b6fe9408321c179ac707893e5fe28ec5458c705acd3d150f8feec918c6618b70
+    relatedImages: []
+    version: 4.17.21
+    release: ""
+    releasedAt: "2025-07-14T03:29:36.609804Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:5867f6132b54451beded3095a44cc495a4f01a0fb8b8743fc6a6bc8513140428
+    relatedImages: []
+    version: 4.16.15
+    release: ""
+    releasedAt: "2025-07-20T19:59:11.315202Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:626b1a9968324a9a3c4120170720281628351b5ee382e21e626e5d05ec981562
+    relatedImages: []
+    version: 4.18.11
+    release: ""
+    releasedAt: "2025-07-21T17:34:42.994638Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:b1444101c234d7a5492764eb858e609f13b009c141f8f2a708e48640372b56ee
+    relatedImages: []
+    version: 4.19.2
+    release: ""
+    releasedAt: "2025-07-22T19:54:17.218992Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:af775902e157f1f8a9fd442c123620fd0b22cc2f8d80e88810e8f897278560a2
+    relatedImages: []
+    version: 4.17.22
+    release: ""
+    releasedAt: "2025-07-24T15:35:02.956694Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:1ff0f96972b2e90dbb3ab33ed5dfea1deefbfa22b864ef240687d962ba32cc2f
+    relatedImages: []
+    version: 4.12.19
+    release: ""
+    releasedAt: "2025-07-27T10:24:45.611118Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:4596fd786fd58890b3f427cd5b17a7a033b89e02ddacb2e27c5495d6ce207c4f
+    relatedImages: []
+    version: 4.18.12
+    release: ""
+    releasedAt: "2025-08-01T05:11:38.725493Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:ed360303c75706b62f16cede922e038a37b8d0e68b14eb774c755a155aba9fa1
+    relatedImages: []
+    version: 4.19.3
+    release: ""
+    releasedAt: "2025-08-04T06:35:10.455808Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:d15d7277407b5f1237b113317038e78abb525e240fad24b01344db29bfedcfb9
+    relatedImages: []
+    version: 4.16.16
+    release: ""
+    releasedAt: "2025-08-05T07:58:02.825016Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:55e8d3faa9f49aff578c5328894869305fa1478f898532040f5dfaad42a5841a
+    relatedImages: []
+    version: 4.17.23
+    release: ""
+    releasedAt: "2025-08-06T03:28:14.40394Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:0efb59d2e58ebe4c4ac58af64eba93837a729e8143a18513b14321cf8ad8c8fd
+    relatedImages: []
+    version: 4.19.4
+    release: ""
+    releasedAt: "2025-08-09T06:36:47.698967Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:ac657662f951ca988be4d7b1e97cf97a45b643c3f77699dd06d191e6283828f8
+    relatedImages: []
+    version: 4.15.12
+    release: ""
+    releasedAt: "2025-08-11T01:36:07.363859Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:8beeba93e5c76f0ba5b4b5b3c632aeddc629b20c4ab59aadd3ef4e9cbf864db9
+    relatedImages: []
+    version: 4.16.17
+    release: ""
+    releasedAt: "2025-08-11T19:58:25.215313Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:67c5e9e98661ca951ffac7f4b354a9e044a6b1afef3e215732e3e2b15edc4eea
+    relatedImages: []
+    version: 4.17.24
+    release: ""
+    releasedAt: "2025-08-12T03:57:23.603136Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:1d984a34589472f1c554bb4a53b6df470104affacd341eccd5fa1e334a7d8854
+    relatedImages: []
+    version: 4.18.13
+    release: ""
+    releasedAt: "2025-08-17T16:58:49.063173Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:f437452965d4f85f36e98c24b5c80bc968ee2b2ee6c86846897c1a42fd2b70dc
+    relatedImages: []
+    version: 4.19.5
+    release: ""
+    releasedAt: "2025-08-17T18:33:36.530344Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:2e6f74fdee937cac995175d61690366775d94f0be216d69425b3607a1680f210
+    relatedImages: []
+    version: 4.17.25
+    release: ""
+    releasedAt: "2025-08-18T03:27:30.960097Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:eb8b47788228d3eb608d2ca24a09f103390ca678f31b824b4ba2c7cf9874eaec
+    relatedImages: []
+    version: 4.14.14
+    release: ""
+    releasedAt: "2025-08-21T13:59:39.49484Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:645420203af4e06b99a32e810fb6b91e61e98f73a5dfcd0d9a741e98a449da5e
+    relatedImages: []
+    version: 4.19.6
+    release: ""
+    releasedAt: "2025-08-24T18:38:16.256188Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:f6d14e99c4e58fddecef2a8cc1c48e7a800620378514bb86d7f3c4e91cddb53d
+    relatedImages: []
+    version: 4.17.26
+    release: ""
+    releasedAt: "2025-08-25T03:27:58.190648Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:6260d3a434acdf52c9344a0a23d174c9b9b3b96e37f2ce26a14b423e831ea1dd
+    relatedImages: []
+    version: 4.16.18
+    release: ""
+    releasedAt: "2025-08-25T08:03:10.738729Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:0f92e8b1bc1c76640098d91610c88858ca6b458490e68f35a5ae28c960aa97e6
+    relatedImages: []
+    version: 4.18.14
+    release: ""
+    releasedAt: "2025-08-29T05:00:07.969493Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:92957f86d9f01d0981830f951780483d57f7e397bbb159cd9725cacd65ea272e
+    relatedImages: []
+    version: 4.17.27
+    release: ""
+    releasedAt: "2025-08-29T15:31:12.574805Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:fc81bc812272b2a127642d058236b2f977ba8e2455d8951dfda74f55fbaa75f6
+    relatedImages: []
+    version: 4.19.7
+    release: ""
+    releasedAt: "2025-08-29T18:36:21.089548Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:92c4003fab1cc4834901ce9af2ccf46e17ce1e72ca59c831788f3c92737217ba
+    relatedImages: []
+    version: 4.16.19
+    release: ""
+    releasedAt: "2025-09-07T07:57:58.373027Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:f4992421bb90631345c61bcd867e8ed7d5827b7bfa4223cd227c77bce9b16e7f
+    relatedImages: []
+    version: 4.17.28
+    release: ""
+    releasedAt: "2025-09-08T15:28:20.116941Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:4a952287bbe7a6cc0c8b10ac28826d8b955681340c69635d6d489a1d4601f945
+    relatedImages: []
+    version: 4.19.8
+    release: ""
+    releasedAt: "2025-09-09T18:44:51.52965Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry@sha256:4f98b7ae57a4ba1d2a24fe2a177e8cd99e7ec018f6c7a162b707521467fe9309
+    relatedImages: []
+    version: 4.12.20
+    release: ""
+    releasedAt: "2025-09-11T11:01:03.539623Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:b1e000d6059a65ee5ddca85072591b231ae1ef1d884719a5fc37aa6c85258fe3
+    relatedImages: []
+    version: 4.16.20
+    release: ""
+    releasedAt: "2025-09-12T19:57:04.384465Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:326407a9e199555604d713dffef13ee7db4f61ab6931a516c0ec6a3a0d48d0a0
+    relatedImages: []
+    version: 4.17.29
+    release: ""
+    releasedAt: "2025-09-13T04:39:31.299422Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:577e12c261a2a8e2f393f1af167ffc177bcc85a273dca68e720238de20bfaefc
+    relatedImages: []
+    version: 4.18.15
+    release: ""
+    releasedAt: "2025-09-15T16:59:47.045533Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:234b05865a16d007e06288aa7d108248c429d6ff8511ea5673e8176c30298d50
+    relatedImages: []
+    version: 4.19.9
+    release: ""
+    releasedAt: "2025-09-16T19:11:02.564846Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:a6e0881f6f8f3156a26fc92bc25b02683204018a177bfefb571be9af90500e1a
+    relatedImages: []
+    version: 4.16.21
+    release: ""
+    releasedAt: "2025-09-20T19:56:30.192961Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:3776fbcec0d22de4ee5bd67cd89bb03e9ee78c6fc88bdf986a4034c13ec65b5d
+    relatedImages: []
+    version: 4.17.30
+    release: ""
+    releasedAt: "2025-09-22T15:27:50.44578Z"
+  - image: registry.redhat.io/container-native-virtualization/hco-bundle-registry-rhel9@sha256:3da5b2baa67e468fe72efcdb4caeeb4f3384365719d5edb5fff6656edcd74141
+    relatedImages: []
+    version: 4.18.16
+    release: ""
+    releasedAt: "2025-09-23T17:16:27.580007Z"
+retractions: []
