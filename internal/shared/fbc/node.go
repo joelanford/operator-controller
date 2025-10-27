@@ -52,7 +52,7 @@ func (n *Node) Compare(other *Node) int {
 	if !n.Retracted && other.Retracted {
 		return 1
 	}
-	if v := cmp.Compare(n.LifecyclePhase, other.LifecyclePhase); v != 0 {
+	if v := n.LifecyclePhase.Compare(other.LifecyclePhase); v != 0 {
 		return v
 	}
 	return n.VersionRelease.Compare(other.VersionRelease)

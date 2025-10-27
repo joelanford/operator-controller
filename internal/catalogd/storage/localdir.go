@@ -192,6 +192,7 @@ func (s *LocalDirV1) StorageServerHandler() http.Handler {
 	if s.EnableMetasHandler {
 		mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1", "metas").Path, s.handleV1Metas)
 	}
+	mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v2alpha1", "extension-status").Path, s.handleExtensionStatus)
 	allowedMethodsHandler := func(next http.Handler, allowedMethods ...string) http.Handler {
 		allowedMethodSet := sets.New[string](allowedMethods...)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

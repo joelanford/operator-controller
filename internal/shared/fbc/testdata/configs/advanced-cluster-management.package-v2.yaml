@@ -206,7 +206,7 @@ bundles:
     relatedImages: []
     version: 2.8.2
     release: ""
-    releasedAt: "2023-10-02T19:49:37.413766:Z"
+    releasedAt: "2023-10-02T19:49:37.413766Z"
   - image: registry.redhat.io/rhacm2/acm-operator-bundle@sha256:6a324ce5650572e54c17daebdea1f04d0db27d36862ea1eccef55661c96a0a38
     relatedImages: []
     version: 2.8.3
