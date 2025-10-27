@@ -366,6 +366,7 @@ func run(ctx context.Context) error {
 		RootDir:            storeDir,
 		RootURL:            baseStorageURL,
 		EnableMetasHandler: features.CatalogdFeatureGate.Enabled(features.APIV1MetasHandler),
+		Client:             mgr.GetClient(),
 	}
 
 	// Config for the catalogd web server

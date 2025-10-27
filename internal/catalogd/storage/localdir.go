@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
 )
@@ -29,6 +30,7 @@ type LocalDirV1 struct {
 	RootDir            string
 	RootURL            *url.URL
 	EnableMetasHandler bool
+	Client             client.Client
 
 	m sync.RWMutex
 	// this singleflight Group is used in `getIndex()`` to handle concurrent HTTP requests

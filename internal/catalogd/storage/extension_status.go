@@ -12,6 +12,7 @@ import (
 
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
 
+	ocv1 "github.com/operator-framework/operator-controller/api/v1"
 	"github.com/operator-framework/operator-controller/internal/shared/fbc"
 )
 
@@ -62,74 +63,74 @@ func (s *LocalDirV1) handleExtensionStatus(w http.ResponseWriter, r *http.Reques
 	s.m.RLock()
 	defer s.m.RUnlock()
 
-	// Parse and validate query parameters
+	ctx := r.Context()
 	catalog := r.PathValue("catalog")
-	packageName := r.URL.Query().Get("package")
-	currentVersionStr := r.URL.Query().Get("currentVersion")
-	clusterVersionStr := r.URL.Query().Get("clusterVersion")
-	versionConstraintStr := r.URL.Query().Get("versionConstraint")
 
-	if packageName == "" {
-		http.Error(w, "missing required parameter: package", http.StatusBadRequest)
-		return
-	}
-	if currentVersionStr == "" {
-		http.Error(w, "missing required parameter: currentVersion", http.StatusBadRequest)
-		return
-	}
-
-	// Parse current version
-	currentVersion, err := bsemver.Parse(currentVersionStr)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("invalid currentVersion: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	// Parse optional cluster version
+	// Discover cluster version (currently returns nil, can be implemented later with discovery client)
 	var clusterVersion *fbc.MajorMinor
-	if clusterVersionStr != "" {
-		cv, err := fbc.NewMajorMinorFromString(clusterVersionStr)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("invalid clusterVersion: %v", err), http.StatusBadRequest)
-			return
+
+	// List all ClusterExtensions
+	var clusterExtensions ocv1.ClusterExtensionList
+	if err := s.Client.List(ctx, &clusterExtensions); err != nil {
+		klog.FromContext(ctx).Error(err, "error listing ClusterExtensions")
+		http.Error(w, fmt.Sprintf("error listing ClusterExtensions: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Compute status for each ClusterExtension
+	var responses []ExtensionStatusResponse
+	for _, ext := range clusterExtensions.Items {
+		// Skip if no install status or if not installed from a catalog
+		if ext.Status.Install == nil || ext.Spec.Source.Catalog == nil {
+			continue
 		}
-		clusterVersion = &cv
-	}
 
-	// Parse optional version constraint
-	versionConstraint := func(_ bsemver.Version) bool {
-		return true
-	}
-	if versionConstraintStr != "" {
-		vc, err := bsemver.ParseRange(versionConstraintStr)
+		packageName := ext.Spec.Source.Catalog.PackageName
+		currentVersionStr := ext.Status.Install.Bundle.Version
+
+		// Parse current version
+		currentVersion, err := bsemver.Parse(currentVersionStr)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("invalid versionConstraint: %v", err), http.StatusBadRequest)
-			return
+			klog.FromContext(ctx).Error(err, "invalid version for ClusterExtension", "name", ext.Name, "version", currentVersionStr)
+			continue
 		}
-		versionConstraint = vc
-	}
 
-	// Load package data from catalog
-	packageData, found, err := s.loadPackageV2(catalog, packageName)
-	if err != nil {
-		klog.FromContext(r.Context()).Error(err, "error loading package", "package", packageName, "catalog", catalog)
-		httpError(w, err)
-		return
-	}
-	if !found {
-		http.Error(w, fmt.Sprintf("package %q not found in catalog %q", packageName, catalog), http.StatusNotFound)
-		return
-	}
+		// Parse version constraint from spec
+		versionConstraint := func(_ bsemver.Version) bool {
+			return true
+		}
+		if ext.Spec.Source.Catalog.Version != "" {
+			vc, err := bsemver.ParseRange(ext.Spec.Source.Catalog.Version)
+			if err != nil {
+				klog.FromContext(ctx).Error(err, "invalid version constraint for ClusterExtension", "name", ext.Name, "constraint", ext.Spec.Source.Catalog.Version)
+			} else {
+				versionConstraint = vc
+			}
+		}
 
-	// Compute status response
-	response, err := computeExtensionStatus(packageData, currentVersion, clusterVersion, versionConstraint)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error computing status: %v", err), http.StatusInternalServerError)
-		return
+		// Load package data from catalog
+		packageData, found, err := s.loadPackageV2(catalog, packageName)
+		if err != nil {
+			klog.FromContext(ctx).Error(err, "error loading package", "package", packageName, "catalog", catalog)
+			continue
+		}
+		if !found {
+			klog.FromContext(ctx).Info("package not found in catalog", "package", packageName, "catalog", catalog)
+			continue
+		}
+
+		// Compute status response
+		response, err := computeExtensionStatus(packageData, currentVersion, clusterVersion, versionConstraint)
+		if err != nil {
+			klog.FromContext(ctx).Error(err, "error computing status", "package", packageName)
+			continue
+		}
+
+		responses = append(responses, *response)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+	if err := json.NewEncoder(w).Encode(responses); err != nil {
 		http.Error(w, fmt.Sprintf("error encoding response: %v", err), http.StatusInternalServerError)
 		return
 	}
