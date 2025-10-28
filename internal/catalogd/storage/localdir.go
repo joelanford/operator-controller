@@ -16,9 +16,10 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
+
+	"github.com/operator-framework/operator-controller/internal/catalogd/clusterversiongetter"
 )
 
 // LocalDirV1 is a storage Instance. When Storing a new FBC contained in
@@ -27,10 +28,10 @@ import (
 // done so that clients accessing the content stored in RootDir/<catalogName>.json1
 // have an atomic view of the content for a catalog.
 type LocalDirV1 struct {
-	RootDir            string
-	RootURL            *url.URL
-	EnableMetasHandler bool
-	Client             client.Client
+	RootDir              string
+	RootURL              *url.URL
+	EnableMetasHandler   bool
+	ClusterVersionGetter clusterversiongetter.ClusterVersionGetter
 
 	m sync.RWMutex
 	// this singleflight Group is used in `getIndex()`` to handle concurrent HTTP requests
@@ -194,7 +195,8 @@ func (s *LocalDirV1) StorageServerHandler() http.Handler {
 	if s.EnableMetasHandler {
 		mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1", "metas").Path, s.handleV1Metas)
 	}
-	mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v2alpha1", "extension-status").Path, s.handleExtensionStatus)
+	mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1alpha1", "resolutions", "{packageName}").Path, s.handleResolutions)
+	mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1alpha1", "resolutions", "{packageName}", "{fromVersion}").Path, s.handleResolutions)
 	allowedMethodsHandler := func(next http.Handler, allowedMethods ...string) http.Handler {
 		allowedMethodSet := sets.New[string](allowedMethods...)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -21,6 +21,7 @@ import (
 	"github.com/operator-framework/operator-registry/alpha/property"
 
 	ocv1 "github.com/operator-framework/operator-controller/api/v1"
+	"github.com/operator-framework/operator-controller/internal/catalogd/clusterversiongetter"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/bundleutil"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/catalogmetadata/compare"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/catalogmetadata/filter"
@@ -31,8 +32,9 @@ import (
 type ValidationFunc func(*declcfg.Bundle) error
 
 type CatalogResolver struct {
-	WalkCatalogsFunc func(context.Context, string, CatalogWalkFunc, ...client.ListOption) error
-	Validations      []ValidationFunc
+	WalkCatalogsFunc     func(context.Context, string, CatalogWalkFunc, ...client.ListOption) error
+	Validations          []ValidationFunc
+	ClusterVersionGetter clusterversiongetter.ClusterVersionGetter
 }
 
 type foundBundle struct {
@@ -48,9 +50,13 @@ func (r *CatalogResolver) Resolve(ctx context.Context, ext *ocv1.ClusterExtensio
 	versionRange := ext.Spec.Source.Catalog.Version
 	channels := ext.Spec.Source.Catalog.Channels
 
+	platform, err := r.ClusterVersionGetter.GetVersion(ctx)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error getting cluster version: %w", err)
+	}
+
 	// unless overridden, default to selecting all bundles
 	var selector = labels.Everything()
-	var err error
 	if ext.Spec.Source.Catalog != nil {
 		selector, err = metav1.LabelSelectorAsSelector(ext.Spec.Source.Catalog.Selector)
 		if err != nil {
@@ -119,30 +125,23 @@ func (r *CatalogResolver) Resolve(ctx context.Context, ext *ocv1.ClusterExtensio
 				return fmt.Errorf("error building graph for package %q from catalog %q: %w", packageName, cat.Name, err)
 			}
 
-			predicates := []fbc.NodePredicate{
-				fbc.PackageNodes(packageName),
-				fbc.NodeInRange(asRange(versionRangeConstraints)),
-			}
+			var from *fbc.Node
 			if ext.Spec.Source.Catalog.UpgradeConstraintPolicy != ocv1.UpgradeConstraintPolicySelfCertified && installedBundle != nil {
 				vr := fbc.VersionRelease{
 					Version: bsemver.MustParse(installedBundle.Version),
-					Release: nil,
+					Release: nil, // TODO: get the installedBundle.Release (when that field is added)
 				}
-				from := g.FirstNodeMatching(fbc.ExactVersionRelease(vr))
-				predicates = append(predicates, fbc.OrNodes(
-					fbc.SuccessorOf(from),
-					fbc.IsNode(from),
-				))
+				from = g.FirstNodeMatching(fbc.ExactVersionRelease(vr))
 			}
 
 			// Apply the predicates to get the candidate bundles
-			matchingNodes := slices.Collect(g.NodesMatching(fbc.AndNodes(predicates...)))
+			matchingNodes := g.PreferredNodes(packageName, from, platform, fbc.NodeInRange(asRange(versionRangeConstraints)))
 			cs.MatchedBundles = len(matchingNodes)
 			if len(matchingNodes) == 0 {
 				return nil
 			}
 
-			// Sort the bundles by deprecation and then by version
+			// Sort the bundles
 			slices.SortStableFunc(matchingNodes, func(a, b *fbc.Node) int {
 				return b.Compare(a)
 			})

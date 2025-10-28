@@ -208,10 +208,6 @@ func (g *Graph) buildEdges(cfg GraphConfig) error {
 				continue
 			}
 
-			to.SupportedPlatformVersions = sets.New[MajorMinor](stream.SupportedPlatformVersions...)
-			to.RequiresUpdatePlatformVersions = sets.New[MajorMinor](stream.RequiresUpdatePlatformVersions...)
-			to.LifecyclePhase = stream.LifecycleDates.Phase(cfg.AsOf)
-
 			if !cfg.IncludePreGA && to.LifecyclePhase == LifecyclePhasePreGA {
 				continue
 			}
@@ -351,4 +347,75 @@ func (g *Graph) assignEdgeWeights(pkg PackageV2) {
 			g.wg.SetWeightedEdge(simple.WeightedEdge{F: from, T: to, W: rank})
 		}
 	}
+}
+
+func (g *Graph) PreferredNodes(packageName string, from *Node, platform MajorMinor, extraPredicates ...NodePredicate) []*Node {
+	availablePredicates := preferredVersionPredicates(packageName, from, platform)
+	availablePredicates = append(availablePredicates, extraPredicates...)
+
+	if from != nil && (from.SupportedPlatformVersions.Has(platform) || from.RequiresUpdatePlatformVersions.Has(platform)) {
+		availablePredicates = append(availablePredicates, func(_ *Graph, suc *Node) bool {
+			return suc.SupportedPlatformVersions.Has(platform)
+		})
+	}
+
+	available := slices.Collect(g.NodesMatching(AndNodes(availablePredicates...)))
+
+	// If any available node is supported, remove nodes that are not supported
+	anySupportPlatform := false
+	for _, node := range available {
+		if node.SupportedPlatformVersions.Has(platform) {
+			anySupportPlatform = true
+			break
+		}
+	}
+	if anySupportPlatform {
+		available = slices.DeleteFunc(available, func(node *Node) bool {
+			return !node.SupportedPlatformVersions.Has(platform)
+		})
+	}
+
+	return available
+}
+
+func (g *Graph) AllNodes(packageName string, from *Node, extraPredicates ...NodePredicate) []*Node {
+	availablePredicates := allVersionsPredicates(packageName, from)
+	availablePredicates = append(availablePredicates, extraPredicates...)
+
+	return slices.Collect(g.NodesMatching(AndNodes(availablePredicates...)))
+}
+
+func allVersionsPredicates(packageName string, from *Node) []NodePredicate {
+	predicates := []NodePredicate{PackageNodes(packageName)}
+	if from != nil {
+		predicates = append(predicates, OrNodes(
+			IsNode(from),
+			SuccessorOf(from),
+		))
+	}
+	return predicates
+}
+
+func preferredVersionPredicates(packageName string, from *Node, platform MajorMinor) []NodePredicate {
+	predicates := allVersionsPredicates(packageName, from)
+	predicates = append(predicates,
+		func(_ *Graph, n *Node) bool { return n.LifecyclePhase != LifecyclePhasePreGA }, // Never suggest pre-GA versions
+		func(_ *Graph, n *Node) bool { return !n.Retracted },                            // Never suggest retracted versions
+		func(_ *Graph, to *Node) bool {
+			return from != nil && to.LifecyclePhase.Compare(from.LifecyclePhase) >= 0
+		}, // LifecyclePhase is at least as good as from node
+		func(_ *Graph, to *Node) bool {
+			switch {
+			case from == nil:
+				return false
+			case from.RequiresUpdatePlatformVersions.Has(platform):
+				return to.SupportedPlatformVersions.Has(platform) || to.RequiresUpdatePlatformVersions.Has(platform)
+			case from.SupportedPlatformVersions.Has(platform):
+				return to.SupportedPlatformVersions.Has(platform)
+			default:
+				return true
+			}
+		}, // Platform compatibility is as least as good as from node
+	)
+	return predicates
 }

@@ -10,9 +10,9 @@ metadata:
     {{- include "olmv1.annotations" . | nindent 4 }}
 rules:
   - apiGroups:
-      - olm.operatorframework.io
+      - config.openshift.io
     resources:
-      - clusterextensions
+      - clusterversions
     verbs:
       - get
       - list

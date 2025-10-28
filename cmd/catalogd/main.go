@@ -51,6 +51,7 @@ import (
 	crwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	ocv1 "github.com/operator-framework/operator-controller/api/v1"
+	"github.com/operator-framework/operator-controller/internal/catalogd/clusterversiongetter"
 	corecontrollers "github.com/operator-framework/operator-controller/internal/catalogd/controllers/core"
 	"github.com/operator-framework/operator-controller/internal/catalogd/features"
 	"github.com/operator-framework/operator-controller/internal/catalogd/garbagecollection"
@@ -362,11 +363,17 @@ func run(ctx context.Context) error {
 		return err
 	}
 
+	clusterVersionGetter, err := clusterversiongetter.NewOpenshiftVersionGetter(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "unable to create cluster version getter")
+		return err
+	}
+
 	localStorage = &storage.LocalDirV1{
-		RootDir:            storeDir,
-		RootURL:            baseStorageURL,
-		EnableMetasHandler: features.CatalogdFeatureGate.Enabled(features.APIV1MetasHandler),
-		Client:             mgr.GetClient(),
+		RootDir:              storeDir,
+		RootURL:              baseStorageURL,
+		EnableMetasHandler:   features.CatalogdFeatureGate.Enabled(features.APIV1MetasHandler),
+		ClusterVersionGetter: clusterVersionGetter,
 	}
 
 	// Config for the catalogd web server
