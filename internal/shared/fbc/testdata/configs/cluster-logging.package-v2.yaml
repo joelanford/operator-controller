@@ -657,4 +657,12 @@ bundles:
     version: 6.2.5
     release: ""
     releasedAt: "2025-09-11T10:54:01.197069Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:10a834de128292c966d88931ffaed3a61138d7c370540aa56091ad809233b964
+    relatedImages: []
+    version: 5.8.22
+    releasedAt: "2025-09-27T23:09:53Z"
+  - image: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:7245cc9bc479841ad5ac04724ae9b93f5d7ebaf70c15e658d1b8d6050e5bce8d
+    relatedImages: []
+    version: 5.9.16
+    releasedAt: "2025-10-06T07:53:00Z"
 retractions: []

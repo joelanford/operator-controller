@@ -35,6 +35,18 @@ type VersionRelease struct {
 	Release Release         `json:"release"`
 }
 
+func NewVersionRelease(versionString, releaseString string) (*VersionRelease, error) {
+	v, err := bsemver.Parse(versionString)
+	if err != nil {
+		return nil, err
+	}
+	r, err := NewRelease(releaseString)
+	if err != nil {
+		return nil, err
+	}
+	return &VersionRelease{Version: v, Release: r}, nil
+}
+
 func (vr VersionRelease) String() string {
 	var sb strings.Builder
 	sb.WriteString(vr.Version.String())

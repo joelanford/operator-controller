@@ -19,7 +19,7 @@ import (
 
 	"github.com/operator-framework/operator-registry/alpha/declcfg"
 
-	"github.com/operator-framework/operator-controller/internal/catalogd/clusterversiongetter"
+	"github.com/operator-framework/operator-controller/internal/shared/clusterversiongetter"
 )
 
 // LocalDirV1 is a storage Instance. When Storing a new FBC contained in
@@ -195,8 +195,9 @@ func (s *LocalDirV1) StorageServerHandler() http.Handler {
 	if s.EnableMetasHandler {
 		mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1", "metas").Path, s.handleV1Metas)
 	}
-	mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1alpha1", "resolutions", "{packageName}").Path, s.handleResolutions)
-	mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1alpha1", "resolutions", "{packageName}", "{fromVersion}").Path, s.handleResolutions)
+	mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1alpha1", "info", "{packageName}").Path, s.handleInfo)
+	mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1alpha1", "info", "{packageName}", "{fromVersionRelease}").Path, s.handleInfo)
+	mux.HandleFunc(s.RootURL.JoinPath("{catalog}", "api", "v1alpha1", "platformUpdatePlan", "{packageName}", "{fromExtensionVersionRelease}", "{toPlatformVersion}").Path, s.handleClusterUpdatePlan)
 	allowedMethodsHandler := func(next http.Handler, allowedMethods ...string) http.Handler {
 		allowedMethodSet := sets.New[string](allowedMethods...)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

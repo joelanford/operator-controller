@@ -625,5 +625,14 @@ bundles:
     version: 3.10.15
     release: ""
     releasedAt: "2025-09-10T14:58:31Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:6dafaefb5523c3e479d4138207f658b0a50e30a72f8a7505b197d1aa2ae151a1
+    relatedImages: []
+    version: 3.13.9
+    releasedAt: "2025-09-17T18:55:56Z"
+  - image: registry.redhat.io/quay/quay-operator-bundle@sha256:cf789fc833547aa4b76f5aa122f9156409e9abbcebe2d81d3dcd9a92c752b0e6
+    relatedImages: []
+    version: 3.10.16
+    releasedAt: "2025-10-13T20:02:32Z"
+
 retractions:
   - version: 3.15.1

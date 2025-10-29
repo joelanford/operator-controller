@@ -4,6 +4,7 @@ metadata:
   name: cincinnati-test
 spec:
   availabilityMode: Available
+  priority: 100
   source:
     image:
       pollIntervalMinutes: 1

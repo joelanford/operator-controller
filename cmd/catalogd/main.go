@@ -51,8 +51,8 @@ import (
 	crwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	ocv1 "github.com/operator-framework/operator-controller/api/v1"
-	"github.com/operator-framework/operator-controller/internal/catalogd/clusterversiongetter"
 	corecontrollers "github.com/operator-framework/operator-controller/internal/catalogd/controllers/core"
+	"github.com/operator-framework/operator-controller/internal/shared/clusterversiongetter"
 	"github.com/operator-framework/operator-controller/internal/catalogd/features"
 	"github.com/operator-framework/operator-controller/internal/catalogd/garbagecollection"
 	catalogdmetrics "github.com/operator-framework/operator-controller/internal/catalogd/metrics"

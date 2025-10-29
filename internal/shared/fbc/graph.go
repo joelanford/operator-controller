@@ -402,12 +402,12 @@ func preferredVersionPredicates(packageName string, from *Node, platform MajorMi
 		func(_ *Graph, n *Node) bool { return n.LifecyclePhase != LifecyclePhasePreGA }, // Never suggest pre-GA versions
 		func(_ *Graph, n *Node) bool { return !n.Retracted },                            // Never suggest retracted versions
 		func(_ *Graph, to *Node) bool {
-			return from != nil && to.LifecyclePhase.Compare(from.LifecyclePhase) >= 0
+			return from == nil || to.LifecyclePhase.Compare(from.LifecyclePhase) >= 0
 		}, // LifecyclePhase is at least as good as from node
 		func(_ *Graph, to *Node) bool {
 			switch {
 			case from == nil:
-				return false
+				return true
 			case from.RequiresUpdatePlatformVersions.Has(platform):
 				return to.SupportedPlatformVersions.Has(platform) || to.RequiresUpdatePlatformVersions.Has(platform)
 			case from.SupportedPlatformVersions.Has(platform):

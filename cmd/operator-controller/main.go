@@ -76,6 +76,7 @@ import (
 	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/render/certproviders"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/render/registryv1"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/scheme"
+	"github.com/operator-framework/operator-controller/internal/shared/clusterversiongetter"
 	sharedcontrollers "github.com/operator-framework/operator-controller/internal/shared/controllers"
 	fsutil "github.com/operator-framework/operator-controller/internal/shared/util/fs"
 	httputil "github.com/operator-framework/operator-controller/internal/shared/util/http"
@@ -407,6 +408,12 @@ func run() error {
 		return httputil.BuildHTTPClient(cpwCatalogd)
 	})
 
+	clusterVersionGetter, err := clusterversiongetter.NewOpenshiftVersionGetter(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "unable to create cluster version getter")
+		return err
+	}
+
 	resolver := &resolve.CatalogResolver{
 		WalkCatalogsFunc: resolve.CatalogWalker(
 			func(ctx context.Context, option ...client.ListOption) ([]ocv1.ClusterCatalog, error) {
@@ -421,6 +428,7 @@ func run() error {
 		Validations: []resolve.ValidationFunc{
 			resolve.NoDependencyValidation,
 		},
+		ClusterVersionGetter: clusterVersionGetter,
 	}
 
 	aeClient, err := apiextensionsv1client.NewForConfig(mgr.GetConfig())
