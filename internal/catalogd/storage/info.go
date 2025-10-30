@@ -31,6 +31,7 @@ type ExtensionStatusResponse struct {
 type VersionInfo struct {
 	Version                        string         `json:"version"`
 	LifecyclePhase                 string         `json:"lifecyclePhase"`
+	LifecyclePhaseEnds             string         `json:"lifecyclePhaseEnds"`
 	Retracted                      bool           `json:"retracted"`
 	ReleaseDate                    string         `json:"releaseDate,omitempty"`
 	Notifications                  []Notification `json:"notifications,omitempty"`
@@ -174,9 +175,15 @@ func nodeToVersionInfo(node *fbc.Node, platform fbc.MajorMinor) *VersionInfo {
 		releaseDate = node.ReleaseDate.Format(time.RFC3339)
 	}
 
+	lifeCyclePhaseEnds := "N/A"
+	if node.LifecyclePhaseEnds != nil {
+		lifeCyclePhaseEnds = node.LifecyclePhaseEnds.String()
+	}
+
 	return &VersionInfo{
 		Version:                        node.VR(),
 		LifecyclePhase:                 node.LifecyclePhase.String(),
+		LifecyclePhaseEnds:             lifeCyclePhaseEnds,
 		Retracted:                      node.Retracted,
 		ReleaseDate:                    releaseDate,
 		Notifications:                  generateNotifications(node, platform),

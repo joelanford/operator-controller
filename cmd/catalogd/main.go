@@ -22,6 +22,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -52,13 +53,14 @@ import (
 
 	ocv1 "github.com/operator-framework/operator-controller/api/v1"
 	corecontrollers "github.com/operator-framework/operator-controller/internal/catalogd/controllers/core"
-	"github.com/operator-framework/operator-controller/internal/shared/clusterversiongetter"
 	"github.com/operator-framework/operator-controller/internal/catalogd/features"
 	"github.com/operator-framework/operator-controller/internal/catalogd/garbagecollection"
 	catalogdmetrics "github.com/operator-framework/operator-controller/internal/catalogd/metrics"
+	"github.com/operator-framework/operator-controller/internal/catalogd/planner"
 	"github.com/operator-framework/operator-controller/internal/catalogd/serverutil"
 	"github.com/operator-framework/operator-controller/internal/catalogd/storage"
 	"github.com/operator-framework/operator-controller/internal/catalogd/webhook"
+	"github.com/operator-framework/operator-controller/internal/shared/clusterversiongetter"
 	sharedcontrollers "github.com/operator-framework/operator-controller/internal/shared/controllers"
 	fsutil "github.com/operator-framework/operator-controller/internal/shared/util/fs"
 	httputil "github.com/operator-framework/operator-controller/internal/shared/util/http"
@@ -376,13 +378,25 @@ func run(ctx context.Context) error {
 		ClusterVersionGetter: clusterVersionGetter,
 	}
 
+	plannerUI := planner.Planner{
+		KubernetesClient: mgr.GetClient(),
+		CatalogURL:       "https://localhost:8443",
+		HTTPClient: &http.Client{
+			Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+		},
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/catalogs/", localStorage.StorageServerHandler())
+	mux.Handle("GET /ui/", plannerUI.Handler())
+
 	// Config for the catalogd web server
 	catalogServerConfig := serverutil.CatalogServerConfig{
 		ExternalAddr: cfg.externalAddr,
-		CatalogAddr:  cfg.catalogServerAddr,
+		ListenAddr:   cfg.catalogServerAddr,
 		CertFile:     cfg.certFile,
 		KeyFile:      cfg.keyFile,
-		LocalStorage: localStorage,
+		Handler:      mux,
 	}
 
 	err = serverutil.AddCatalogServerToManager(mgr, catalogServerConfig, cw)

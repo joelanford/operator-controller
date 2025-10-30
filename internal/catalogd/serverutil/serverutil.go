@@ -16,19 +16,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	catalogdmetrics "github.com/operator-framework/operator-controller/internal/catalogd/metrics"
-	"github.com/operator-framework/operator-controller/internal/catalogd/storage"
 )
 
 type CatalogServerConfig struct {
 	ExternalAddr string
-	CatalogAddr  string
+	ListenAddr   string
 	CertFile     string
 	KeyFile      string
-	LocalStorage storage.Instance
+	Handler      http.Handler
 }
 
 func AddCatalogServerToManager(mgr ctrl.Manager, cfg CatalogServerConfig, tlsFileWatcher *certwatcher.CertWatcher) error {
-	listener, err := net.Listen("tcp", cfg.CatalogAddr)
+	listener, err := net.Listen("tcp", cfg.ListenAddr)
 	if err != nil {
 		return fmt.Errorf("error creating catalog server listener: %w", err)
 	}
@@ -47,7 +46,7 @@ func AddCatalogServerToManager(mgr ctrl.Manager, cfg CatalogServerConfig, tlsFil
 		Name:                "catalogs",
 		OnlyServeWhenLeader: true,
 		Server: &http.Server{
-			Addr:        cfg.CatalogAddr,
+			Addr:        cfg.ListenAddr,
 			Handler:     storageServerHandlerWrapped(mgr.GetLogger().WithName("catalogd-http-server"), cfg),
 			ReadTimeout: 5 * time.Second,
 			// TODO: Revert this to 10 seconds if/when the API
@@ -95,7 +94,7 @@ func logrLoggingHandler(l logr.Logger, handler http.Handler) http.Handler {
 }
 
 func storageServerHandlerWrapped(l logr.Logger, cfg CatalogServerConfig) http.Handler {
-	handler := cfg.LocalStorage.StorageServerHandler()
+	handler := cfg.Handler
 	handler = gzhttp.GzipHandler(handler)
 	handler = catalogdmetrics.AddMetricsToHandler(handler)
 

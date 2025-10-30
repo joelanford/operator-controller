@@ -65,23 +65,27 @@ func (l LifecycleDates) ValidateOrder() error {
 	return nil
 }
 
-func (l LifecycleDates) Phase(asOf time.Time) LifecyclePhase {
+func (l LifecycleDates) Phase(asOf time.Time) (LifecyclePhase, *Date) {
 	if asOf.Before(l.FullSupport.t) {
-		return LifecyclePhasePreGA
+		return LifecyclePhasePreGA, &l.FullSupport
 	}
 	if asOf.Before(l.Maintenance.t) {
-		return LifecyclePhaseFullSupport
+		return LifecyclePhaseFullSupport, &l.Maintenance
 	}
 	if asOf.After(l.EndOfLife.t) {
-		return LifecyclePhaseEndOfLife
+		return LifecyclePhaseEndOfLife, nil
 	}
 	if len(l.Extensions) == 0 || asOf.Before(l.Extensions[0].t) {
-		return LifecyclePhaseMaintenance
+		end := &l.EndOfLife
+		if len(l.Extensions) > 0 {
+			end = &l.Extensions[0]
+		}
+		return LifecyclePhaseMaintenance, end
 	}
 	for i := 1; i < len(l.Extensions); i++ {
 		if asOf.Before(l.Extensions[i].t) {
-			return LifecycleExtensionPhase(i)
+			return LifecycleExtensionPhase(i), &l.Extensions[i]
 		}
 	}
-	return LifecycleExtensionPhase(len(l.Extensions))
+	return LifecycleExtensionPhase(len(l.Extensions)), &l.EndOfLife
 }

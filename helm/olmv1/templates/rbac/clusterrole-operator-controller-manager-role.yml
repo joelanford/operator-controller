@@ -10,6 +10,14 @@ metadata:
     {{- include "olmv1.annotations" . | nindent 4 }}
 rules:
   - apiGroups:
+      - config.openshift.io
+    resources:
+      - clusterversions
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
       - ""
     resources:
       - serviceaccounts/token

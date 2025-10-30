@@ -69,13 +69,14 @@ func nodesFromPackage(pkg PackageV2, asOf time.Time) ([]*Node, error) {
 				break
 			}
 		}
-
+		phase, phaseEnd := vs.LifecycleDates.Phase(asOf)
 		node := &Node{
 			Name:                           pkg.Package,
 			VersionRelease:                 b.VersionRelease,
 			ReleaseDate:                    b.ReleasedAt,
 			ImageReference:                 canonicalRef,
-			LifecyclePhase:                 vs.LifecycleDates.Phase(asOf),
+			LifecyclePhase:                 phase,
+			LifecyclePhaseEnds:             phaseEnd,
 			SupportedPlatformVersions:      sets.New(vs.SupportedPlatformVersions...),
 			RequiresUpdatePlatformVersions: sets.New(vs.RequiresUpdatePlatformVersions...),
 			Retracted:                      isRetracted,

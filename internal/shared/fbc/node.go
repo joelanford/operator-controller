@@ -20,6 +20,7 @@ type Node struct {
 	Retracted      bool
 
 	LifecyclePhase                 LifecyclePhase
+	LifecyclePhaseEnds             *Date
 	SupportedPlatformVersions      sets.Set[MajorMinor]
 	RequiresUpdatePlatformVersions sets.Set[MajorMinor]
 
