@@ -2,50 +2,61 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: quay-operator
+  name: operators
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: quay-installer
-  namespace: quay-operator
+  name: operator-installer
+  namespace: operators
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: quay-installer-admin
+  name: operator-installer-admin
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: cluster-admin
 subjects:
 - kind: ServiceAccount
-  name: quay-installer
-  namespace: quay-operator
+  name: operator-installer
+  namespace: operators
 ---
 apiVersion: olm.operatorframework.io/v1
 kind: ClusterExtension
 metadata:
   name: quay-operator
 spec:
-  namespace: quay-operator
+  install:
+    preflight:
+      crdUpgradeSafety:
+        enforcement: None
+  namespace: operators
   serviceAccount:
-    name: quay-installer
+    name: operator-installer
   source:
     sourceType: Catalog
     catalog:
+      upgradeConstraintPolicy: CatalogProvided
       packageName: quay-operator
-      version: 3.14.3
+      version: 3.12.7
 ---
 apiVersion: olm.operatorframework.io/v1
 kind: ClusterExtension
 metadata:
   name: kubevirt-hyperconverged
 spec:
-  namespace: quay-operator
+  install:
+    preflight:
+      crdUpgradeSafety:
+        enforcement: None
+  namespace: operators
   serviceAccount:
-    name: quay-installer
+    name: operator-installer
   source:
     sourceType: Catalog
     catalog:
+      upgradeConstraintPolicy: CatalogProvided
       packageName: kubevirt-hyperconverged
+      version: 4.16.12

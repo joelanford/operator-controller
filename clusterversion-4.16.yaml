@@ -1,0 +1,13 @@
+apiVersion: config.openshift.io/v1
+kind: ClusterVersion
+metadata:
+  name: version
+spec:
+  clusterID: f47ac10b-58cc-4372-a567-0e02b2c3d479
+status:
+  desired:
+    image: quay.io/redhat/payload:4.16.0
+    version: 4.16.0
+  availableUpdates: []
+  observedGeneration: 1
+  versionHash: 12312415asda
