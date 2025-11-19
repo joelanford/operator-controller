@@ -41,6 +41,14 @@ type ClusterExtensionRevisionGenerator interface {
 		helmRelease *release.Release, ext *ocv1.ClusterExtension,
 		objectLabels map[string]string,
 	) (*ocv1.ClusterExtensionRevision, error)
+	GenerateRevisionFromObjects(
+		ctx context.Context,
+		ext *ocv1.ClusterExtension,
+		collisionProtection ocv1.CollisionProtection,
+		objects []client.Object,
+		objectLabels map[string]string,
+		revisionAnnotations map[string]string,
+	) (*ocv1.ClusterExtensionRevision, error)
 }
 
 type SimpleRevisionGenerator struct {
@@ -89,6 +97,27 @@ func (r *SimpleRevisionGenerator) GenerateRevisionFromHelmRelease(
 	return rev, nil
 }
 
+func (r *SimpleRevisionGenerator) GenerateRevisionFromObjects(
+	ctx context.Context,
+	ext *ocv1.ClusterExtension,
+	collisionProtection ocv1.CollisionProtection,
+	objects []client.Object,
+	objectLabels map[string]string,
+	revisionAnnotations map[string]string,
+) (*ocv1.ClusterExtensionRevision, error) {
+
+	objs, err := r.generateRevisionObjects(ctx, collisionProtection, objects, objectLabels)
+	if err != nil {
+		return nil, err
+	}
+
+	if revisionAnnotations == nil {
+		revisionAnnotations = map[string]string{}
+	}
+
+	return r.buildClusterExtensionRevision(objs, ext, revisionAnnotations), nil
+}
+
 func (r *SimpleRevisionGenerator) GenerateRevision(
 	ctx context.Context,
 	bundleFS fs.FS, ext *ocv1.ClusterExtension,
@@ -100,14 +129,32 @@ func (r *SimpleRevisionGenerator) GenerateRevision(
 		return nil, err
 	}
 
+	objs, err := r.generateRevisionObjects(ctx, ocv1.CollisionProtectionPrevent, plain, objectLabels)
+	if err != nil {
+		return nil, err
+	}
+
+	if revisionAnnotations == nil {
+		revisionAnnotations = map[string]string{}
+	}
+
+	return r.buildClusterExtensionRevision(objs, ext, revisionAnnotations), nil
+}
+
+func (r *SimpleRevisionGenerator) generateRevisionObjects(
+	ctx context.Context,
+	collisionProtection ocv1.CollisionProtection,
+	objects []client.Object,
+	objectLabels map[string]string,
+) ([]ocv1.ClusterExtensionRevisionObject, error) {
 	// objectLabels
-	objs := make([]ocv1.ClusterExtensionRevisionObject, 0, len(plain))
-	for _, obj := range plain {
+	objs := make([]ocv1.ClusterExtensionRevisionObject, 0, len(objects))
+	for _, obj := range objects {
 		existingLabels := obj.GetLabels()
-		labels := make(map[string]string, len(existingLabels)+len(objectLabels))
-		maps.Copy(labels, existingLabels)
-		maps.Copy(labels, objectLabels)
-		obj.SetLabels(labels)
+		newLabels := make(map[string]string, len(existingLabels)+len(objectLabels))
+		maps.Copy(newLabels, existingLabels)
+		maps.Copy(newLabels, objectLabels)
+		obj.SetLabels(newLabels)
 
 		gvk, err := apiutil.GVKForObject(obj, r.Scheme)
 		if err != nil {
@@ -128,15 +175,11 @@ func (r *SimpleRevisionGenerator) GenerateRevision(
 		sanitizedUnstructured(ctx, &unstr)
 
 		objs = append(objs, ocv1.ClusterExtensionRevisionObject{
-			Object: unstr,
+			Object:              unstr,
+			CollisionProtection: collisionProtection,
 		})
 	}
-
-	if revisionAnnotations == nil {
-		revisionAnnotations = map[string]string{}
-	}
-
-	return r.buildClusterExtensionRevision(objs, ext, revisionAnnotations), nil
+	return objs, nil
 }
 
 // sanitizedUnstructured takes an unstructured obj, removes status if present, and returns a sanitized copy containing only the allowed metadata entries set below.

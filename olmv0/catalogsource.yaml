@@ -1,0 +1,11 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: demo-catalog
+  namespace: olm
+spec:
+  sourceType: grpc
+  image: kind-registry:5443/olm-kubecon2025-demo:catalog
+  grpcPodConfig:
+    extractContent:
+      catalogDir: /configs
