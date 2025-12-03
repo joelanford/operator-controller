@@ -1827,6 +1827,7 @@ spec:
             - --tls-custom-version=TLSv1.3
             - --tls-custom-curves=X25519,prime256v1
             - --tls-custom-ciphers=TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384
+            - --olm-api-group=olm.operatorframework.io
           command:
             - ./catalogd
           env:
@@ -1975,6 +1976,7 @@ spec:
             - --catalogd-cas-dir=/var/ca-certs
             - --pull-cas-dir=/var/ca-certs
             - --tls-profile=modern
+            - --olm-api-group=olm.operatorframework.io
           command:
             - /operator-controller
           env:

@@ -152,9 +152,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     olm.operatorframework.io/generator: experimental
-  name: clustercatalogs.olm.operatorframework.io
+  name: clustercatalogs.experimental.olm.operatorframework.io
 spec:
-  group: olm.operatorframework.io
+  group: experimental.olm.operatorframework.io
   names:
     kind: ClusterCatalog
     listKind: ClusterCatalogList
@@ -595,9 +595,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     olm.operatorframework.io/generator: experimental
-  name: clusterextensionrevisions.olm.operatorframework.io
+  name: clusterextensionrevisions.experimental.olm.operatorframework.io
 spec:
-  group: olm.operatorframework.io
+  group: experimental.olm.operatorframework.io
   names:
     kind: ClusterExtensionRevision
     listKind: ClusterExtensionRevisionList
@@ -868,9 +868,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
     olm.operatorframework.io/generator: experimental
-  name: clusterextensions.olm.operatorframework.io
+  name: clusterextensions.experimental.olm.operatorframework.io
 spec:
-  group: olm.operatorframework.io
+  group: experimental.olm.operatorframework.io
   names:
     kind: ClusterExtension
     listKind: ClusterExtensionList
@@ -1503,7 +1503,7 @@ metadata:
     olm.operatorframework.io/feature-set: experimental
 rules:
   - apiGroups:
-      - olm.operatorframework.io
+      - experimental.olm.operatorframework.io
     resources:
       - clustercatalogs
     verbs:
@@ -1515,13 +1515,13 @@ rules:
       - update
       - watch
   - apiGroups:
-      - olm.operatorframework.io
+      - experimental.olm.operatorframework.io
     resources:
       - clustercatalogs/finalizers
     verbs:
       - update
   - apiGroups:
-      - olm.operatorframework.io
+      - experimental.olm.operatorframework.io
     resources:
       - clustercatalogs/status
     verbs:
@@ -1621,7 +1621,7 @@ metadata:
   name: operator-controller-clusterextension-viewer-role
 rules:
   - apiGroups:
-      - olm.operatorframework.io
+      - experimental.olm.operatorframework.io
     resources:
       - clusterextensions
     verbs:
@@ -1653,7 +1653,7 @@ rules:
     verbs:
       - get
   - apiGroups:
-      - olm.operatorframework.io
+      - experimental.olm.operatorframework.io
     resources:
       - clustercatalogs
     verbs:
@@ -1661,7 +1661,7 @@ rules:
       - list
       - watch
   - apiGroups:
-      - olm.operatorframework.io
+      - experimental.olm.operatorframework.io
     resources:
       - clusterextensions
     verbs:
@@ -1671,13 +1671,13 @@ rules:
       - update
       - watch
   - apiGroups:
-      - olm.operatorframework.io
+      - experimental.olm.operatorframework.io
     resources:
       - clusterextensions/finalizers
     verbs:
       - update
   - apiGroups:
-      - olm.operatorframework.io
+      - experimental.olm.operatorframework.io
     resources:
       - clusterextensions/status
     verbs:
@@ -2060,6 +2060,7 @@ spec:
             - --tls-cert=/var/certs/tls.crt
             - --tls-key=/var/certs/tls.key
             - --pull-cas-dir=/var/ca-certs
+            - --olm-api-group=experimental.olm.operatorframework.io
           command:
             - ./catalogd
           image: "quay.io/operator-framework/catalogd:devel"
@@ -2203,6 +2204,7 @@ spec:
             - --tls-key=/var/certs/tls.key
             - --catalogd-cas-dir=/var/ca-certs
             - --pull-cas-dir=/var/ca-certs
+            - --olm-api-group=experimental.olm.operatorframework.io
           command:
             - /operator-controller
           image: "quay.io/operator-framework/operator-controller:devel"
@@ -2411,7 +2413,7 @@ spec:
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: catalogd-mutating-webhook-configuration
+  name: catalogd-mutating-webhook-configuration-experimental.olm.operatorframework.io
   labels:
     app.kubernetes.io/name: catalogd
     app.kubernetes.io/part-of: olm
@@ -2425,13 +2427,13 @@ webhooks:
       service:
         name: catalogd-service
         namespace: olmv1-system
-        path: /mutate-olm-operatorframework-io-v1-clustercatalog
+        path: /mutate-experimental-olm-operatorframework-io-v1-clustercatalog
         port: 9443
     failurePolicy: Fail
-    name: inject-metadata-name.olm.operatorframework.io
+    name: inject-metadata-name.experimental.olm.operatorframework.io
     rules:
       - apiGroups:
-          - olm.operatorframework.io
+          - experimental.olm.operatorframework.io
         apiVersions:
           - v1
         operations:

@@ -9,11 +9,10 @@ import (
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-
-	ocv1 "github.com/operator-framework/operator-controller/api/v1"
 )
 
 var _ manager.Runnable = (*GarbageCollector)(nil)
@@ -28,6 +27,7 @@ type GarbageCollector struct {
 	CachePath      string
 	Logger         logr.Logger
 	MetadataClient metadata.Interface
+	GroupVersion   schema.GroupVersion
 	Interval       time.Duration
 }
 
@@ -37,7 +37,7 @@ type GarbageCollector struct {
 // supplied garbage collection interval.
 func (gc *GarbageCollector) Start(ctx context.Context) error {
 	// Run once on startup
-	removed, err := runGarbageCollection(ctx, gc.CachePath, gc.MetadataClient)
+	removed, err := runGarbageCollection(ctx, gc.CachePath, gc.MetadataClient, gc.GroupVersion)
 	if err != nil {
 		gc.Logger.Error(err, "running garbage collection")
 	}
@@ -52,7 +52,7 @@ func (gc *GarbageCollector) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(gc.Interval):
-			removed, err := runGarbageCollection(ctx, gc.CachePath, gc.MetadataClient)
+			removed, err := runGarbageCollection(ctx, gc.CachePath, gc.MetadataClient, gc.GroupVersion)
 			if err != nil {
 				gc.Logger.Error(err, "running garbage collection")
 			}
@@ -63,8 +63,8 @@ func (gc *GarbageCollector) Start(ctx context.Context) error {
 	}
 }
 
-func runGarbageCollection(ctx context.Context, cachePath string, metaClient metadata.Interface) ([]string, error) {
-	getter := metaClient.Resource(ocv1.GroupVersion.WithResource("clustercatalogs"))
+func runGarbageCollection(ctx context.Context, cachePath string, metaClient metadata.Interface, gv schema.GroupVersion) ([]string, error) {
+	getter := metaClient.Resource(gv.WithResource("clustercatalogs"))
 	metaList, err := getter.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error listing clustercatalogs: %w", err)

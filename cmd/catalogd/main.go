@@ -31,6 +31,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.podman.io/image/v5/types"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	apimachineryrand "k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -48,6 +49,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/scheme"
 	crwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	ocv1 "github.com/operator-framework/operator-controller/api/v1"
@@ -59,6 +61,7 @@ import (
 	"github.com/operator-framework/operator-controller/internal/catalogd/storage"
 	"github.com/operator-framework/operator-controller/internal/catalogd/webhook"
 	sharedcontrollers "github.com/operator-framework/operator-controller/internal/shared/controllers"
+	apiutil "github.com/operator-framework/operator-controller/internal/shared/util/api"
 	cacheutil "github.com/operator-framework/operator-controller/internal/shared/util/cache"
 	fsutil "github.com/operator-framework/operator-controller/internal/shared/util/fs"
 	httputil "github.com/operator-framework/operator-controller/internal/shared/util/http"
@@ -70,7 +73,6 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 	cfg      = &config{}
 )
@@ -95,6 +97,7 @@ type config struct {
 	webhookPort          int
 	pullCasDir           string
 	globalPullSecret     string
+	olmAPIGroup          string
 	// Generated config
 	globalPullSecretKey *k8stypes.NamespacedName
 }
@@ -134,8 +137,9 @@ func init() {
 	flags.StringVar(&cfg.certFile, "tls-cert", "", "Certificate file for TLS")
 	flags.StringVar(&cfg.keyFile, "tls-key", "", "Key file for TLS")
 	flags.IntVar(&cfg.webhookPort, "webhook-server-port", 9443, "Webhook server port")
-	flag.StringVar(&cfg.pullCasDir, "pull-cas-dir", "", "The directory of TLS certificate authoritiess to use for verifying HTTPS copullCasDirnnections to image registries.")
+	flags.StringVar(&cfg.pullCasDir, "pull-cas-dir", "", "The directory of TLS certificate authoritiess to use for verifying HTTPS copullCasDirnnections to image registries.")
 	flags.StringVar(&cfg.globalPullSecret, "global-pull-secret", "", "Global pull secret (<namespace>/<name>)")
+	flags.StringVar(&cfg.olmAPIGroup, "olm-api-group", ocv1.GroupVersion.Group, "OLM API Group")
 
 	// adds version subcommand
 	catalogdCmd.AddCommand(versionCommand)
@@ -146,8 +150,6 @@ func init() {
 	features.CatalogdFeatureGate.AddFlag(flags)
 	tlsprofiles.AddFlags(flags)
 
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(ocv1.AddToScheme(scheme))
 	ctrl.SetLogger(klog.NewKlogr())
 }
 
@@ -272,10 +274,20 @@ func run(ctx context.Context) error {
 		setupLog.Error(err, "Unable to setup pull-secret cache")
 		return err
 	}
+	sch := runtime.NewScheme()
+	gv := schema.GroupVersion{Group: cfg.olmAPIGroup, Version: "v1"}
+	sb := scheme.Builder{GroupVersion: gv}
+	sb.Register(
+		&ocv1.ClusterExtension{}, &ocv1.ClusterExtensionList{},
+		&ocv1.ClusterCatalog{}, &ocv1.ClusterCatalogList{},
+	)
+	utilruntime.Must(sb.AddToScheme(sch))
+	utilruntime.Must(clientgoscheme.AddToScheme(sch))
 
 	// Create manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                        scheme,
+		Scheme:                        sch,
+		MapperProvider:                apiutil.RESTMapperProvider(cfg.olmAPIGroup),
 		Metrics:                       metricsServerOptions,
 		PprofBindAddress:              cfg.pprofAddr,
 		HealthProbeBindAddress:        cfg.probeAddr,
@@ -428,6 +440,7 @@ func run(ctx context.Context) error {
 		CachePath:      unpackCacheBasePath,
 		Logger:         ctrl.Log.WithName("garbage-collector"),
 		MetadataClient: metaClient,
+		GroupVersion:   gv,
 		Interval:       cfg.gcInterval,
 	}
 	if err := mgr.Add(gc); err != nil {

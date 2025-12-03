@@ -3,6 +3,9 @@
 # Declare variables to be passed into your templates.
 
 # List of components to include
+
+apiGroup: olm.operatorframework.io
+
 options:
   operatorController:
     enabled: true

@@ -30,14 +30,20 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.podman.io/image/v5/types"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsv1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	apimachineryrand "k8s.io/apimachinery/pkg/util/rand"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/klog/v2"
@@ -56,6 +62,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 
@@ -76,8 +83,8 @@ import (
 	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/render"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/render/certproviders"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/render/registryv1"
-	"github.com/operator-framework/operator-controller/internal/operator-controller/scheme"
 	sharedcontrollers "github.com/operator-framework/operator-controller/internal/shared/controllers"
+	apiutil "github.com/operator-framework/operator-controller/internal/shared/util/api"
 	cacheutil "github.com/operator-framework/operator-controller/internal/shared/util/cache"
 	fsutil "github.com/operator-framework/operator-controller/internal/shared/util/fs"
 	httputil "github.com/operator-framework/operator-controller/internal/shared/util/http"
@@ -107,6 +114,7 @@ type config struct {
 	catalogdCasDir       string
 	pullCasDir           string
 	globalPullSecret     string
+	olmAPIGroup          string
 }
 
 type reconcilerConfigurator interface {
@@ -186,6 +194,7 @@ func init() {
 	flags.StringVar(&cfg.cachePath, "cache-path", "/var/cache", "The local directory path used for filesystem based caching")
 	flags.StringVar(&cfg.systemNamespace, "system-namespace", "", "Configures the namespace that gets used to deploy system resources.")
 	flags.StringVar(&cfg.globalPullSecret, "global-pull-secret", "", "The <namespace>/<name> of the global pull secret that is going to be used to pull bundle images.")
+	flags.StringVar(&cfg.olmAPIGroup, "olm-api-group", ocv1.GroupVersion.Group, "The API group used to find the olm API version.")
 
 	//adds version sub command
 	operatorControllerCmd.AddCommand(versionCommand)
@@ -326,10 +335,25 @@ func run() error {
 		setupLog.Info("WARNING: Metrics Server is disabled. " +
 			"Metrics will not be served since the TLS certificate and key file are not provided.")
 	}
+	sch := runtime.NewScheme()
+	gv := schema.GroupVersion{Group: cfg.olmAPIGroup, Version: "v1"}
+	sb := scheme.Builder{GroupVersion: gv}
+	sb.Register(
+		&ocv1.ClusterExtension{}, &ocv1.ClusterExtensionList{},
+		&ocv1.ClusterCatalog{}, &ocv1.ClusterCatalogList{},
+	)
+	if features.OperatorControllerFeatureGate.Enabled(features.BoxcutterRuntime) {
+		sb.Register(&ocv1.ClusterExtensionRevision{}, &ocv1.ClusterExtensionRevisionList{})
+	}
+	utilruntime.Must(sb.AddToScheme(sch))
+	utilruntime.Must(clientgoscheme.AddToScheme(sch))
+	utilruntime.Must(appsv1.AddToScheme(sch))
+	utilruntime.Must(corev1.AddToScheme(sch))
 
 	restConfig := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme:                        scheme.Scheme,
+		Scheme:                        sch,
+		MapperProvider:                apiutil.RESTMapperProvider(cfg.olmAPIGroup),
 		Metrics:                       metricsServerOptions,
 		PprofBindAddress:              cfg.pprofAddr,
 		HealthProbeBindAddress:        cfg.probeAddr,

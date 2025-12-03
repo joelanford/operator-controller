@@ -45,7 +45,10 @@ export CERT_MGR_VERSION := v1.18.2
 export WAIT_TIMEOUT := 60s
 
 # Install default ClusterCatalogs
-export INSTALL_DEFAULT_CATALOGS := true
+ifeq ($(origin INSTALL_DEFAULT_CATALOGS), undefined)
+INSTALL_DEFAULT_CATALOGS := true
+endif
+export INSTALL_DEFAULT_CATALOGS
 
 # By default setup-envtest binary will write to $XDG_DATA_HOME, or $HOME/.local/share if that is not defined.
 # If $HOME is not set, we need to specify a binary directory to prevent an error in setup-envtest.

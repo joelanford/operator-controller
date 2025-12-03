@@ -22,7 +22,7 @@ rules:
     verbs:
       - get
   - apiGroups:
-      - olm.operatorframework.io
+      - {{ .Values.apiGroup }}
     resources:
       - clustercatalogs
     verbs:
@@ -30,7 +30,7 @@ rules:
       - list
       - watch
   - apiGroups:
-      - olm.operatorframework.io
+      - {{ .Values.apiGroup }}
     resources:
       - clusterextensions
     verbs:
@@ -40,13 +40,13 @@ rules:
       - update
       - watch
   - apiGroups:
-      - olm.operatorframework.io
+      - {{ .Values.apiGroup }}
     resources:
       - clusterextensions/finalizers
     verbs:
       - update
   - apiGroups:
-      - olm.operatorframework.io
+      - {{ .Values.apiGroup }}
     resources:
       - clusterextensions/status
     verbs:
