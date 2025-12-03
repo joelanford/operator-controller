@@ -2,6 +2,9 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# Use an experimental API Group for the experimental channel
+apiGroup: experimental.olm.operatorframework.io
+
 # List of enabled experimental features for operator-controller
 # Use with {{- if has "FeatureGate" .Values.options.operatorController.features.enabled }}
 # to pull in resources or additions

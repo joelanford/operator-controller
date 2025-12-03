@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -16,6 +17,7 @@ import (
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -25,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ocv1 "github.com/operator-framework/operator-controller/api/v1"
-	"github.com/operator-framework/operator-controller/internal/operator-controller/scheme"
 )
 
 var (
@@ -385,7 +386,11 @@ func init() {
 	cfg = ctrl.GetConfigOrDie()
 
 	var err error
-	utilruntime.Must(apiextensionsv1.AddToScheme(scheme.Scheme))
-	c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	sch := runtime.NewScheme()
+	utilruntime.Must(apiextensionsv1.AddToScheme(sch))
+	utilruntime.Must(ocv1.AddToScheme(sch))
+	utilruntime.Must(appsv1.AddToScheme(sch))
+	utilruntime.Must(corev1.AddToScheme(sch))
+	c, err = client.New(cfg, client.Options{Scheme: sch})
 	utilruntime.Must(err)
 }

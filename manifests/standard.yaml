@@ -1747,6 +1747,7 @@ spec:
             - --tls-cert=/var/certs/tls.crt
             - --tls-key=/var/certs/tls.key
             - --pull-cas-dir=/var/ca-certs
+            - --olm-api-group=olm.operatorframework.io
           command:
             - ./catalogd
           image: "quay.io/operator-framework/catalogd:devel"
@@ -1885,6 +1886,7 @@ spec:
             - --tls-key=/var/certs/tls.key
             - --catalogd-cas-dir=/var/ca-certs
             - --pull-cas-dir=/var/ca-certs
+            - --olm-api-group=olm.operatorframework.io
           command:
             - /operator-controller
           image: "quay.io/operator-framework/operator-controller:devel"

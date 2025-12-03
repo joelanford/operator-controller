@@ -11,7 +11,7 @@ metadata:
   name: operator-controller-clusterextension-viewer-role
 rules:
   - apiGroups:
-      - olm.operatorframework.io
+      - {{ .Values.apiGroup }}
     resources:
       - clusterextensions
     verbs:

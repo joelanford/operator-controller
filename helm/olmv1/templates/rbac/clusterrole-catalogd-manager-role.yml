@@ -10,7 +10,7 @@ metadata:
     {{- include "olmv1.annotations" . | nindent 4 }}
 rules:
   - apiGroups:
-      - olm.operatorframework.io
+      - {{ .Values.apiGroup }}
     resources:
       - clustercatalogs
     verbs:
@@ -22,13 +22,13 @@ rules:
       - update
       - watch
   - apiGroups:
-      - olm.operatorframework.io
+      - {{ .Values.apiGroup }}
     resources:
       - clustercatalogs/finalizers
     verbs:
       - update
   - apiGroups:
-      - olm.operatorframework.io
+      - {{ .Values.apiGroup }}
     resources:
       - clustercatalogs/status
     verbs:

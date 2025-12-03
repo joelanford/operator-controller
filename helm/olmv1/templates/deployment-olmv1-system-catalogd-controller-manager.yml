@@ -74,6 +74,7 @@ spec:
             - --tls-custom-curves=X25519,prime256v1
             - --tls-custom-ciphers=TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384
             {{- end }}
+            - --olm-api-group={{ .Values.apiGroup }}
           command:
             - ./catalogd
           {{- if or .Values.options.e2e.enabled .Values.options.openshift.enabled }}
