@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/types"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -62,7 +63,7 @@ import (
 	cacheutil "github.com/operator-framework/operator-controller/internal/shared/util/cache"
 	fsutil "github.com/operator-framework/operator-controller/internal/shared/util/fs"
 	httputil "github.com/operator-framework/operator-controller/internal/shared/util/http"
-	imageutil "github.com/operator-framework/operator-controller/internal/shared/util/image"
+	"github.com/operator-framework/operator-controller/internal/shared/util/imagev2"
 	"github.com/operator-framework/operator-controller/internal/shared/util/pullsecretcache"
 	sautil "github.com/operator-framework/operator-controller/internal/shared/util/sa"
 	"github.com/operator-framework/operator-controller/internal/shared/util/tlsprofiles"
@@ -330,25 +331,38 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	imageCache := imageutil.CatalogCache(unpackCacheBasePath)
-	imagePuller := &imageutil.ContainersImagePuller{
-		SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
-			logger := log.FromContext(ctx)
-			srcContext := &types.SystemContext{
-				DockerCertPath: cfg.pullCasDir,
-				OCICertPath:    cfg.pullCasDir,
-			}
-			if _, err := os.Stat(authFilePath); err == nil {
-				logger.Info("using available authentication information for pulling image")
-				srcContext.AuthFilePath = authFilePath
-			} else if os.IsNotExist(err) {
-				logger.Info("no authentication information found for pulling image, proceeding without auth")
-			} else {
-				return nil, fmt.Errorf("could not stat auth file, error: %w", err)
-			}
-			return srcContext, nil
-		},
+	// Create repository factory that creates image clients with appropriate auth
+	repositoryFactory := func(ctx context.Context, ref string) (imagev2.Repository, error) {
+		logger := log.FromContext(ctx)
+		srcContext := &types.SystemContext{
+			DockerCertPath: cfg.pullCasDir,
+			OCICertPath:    cfg.pullCasDir,
+		}
+		if _, err := os.Stat(authFilePath); err == nil {
+			logger.Info("using available authentication information for pulling image")
+			srcContext.AuthFilePath = authFilePath
+		} else if os.IsNotExist(err) {
+			logger.Info("no authentication information found for pulling image, proceeding without auth")
+		} else {
+			return nil, fmt.Errorf("could not stat auth file, error: %w", err)
+		}
+		named, err := reference.ParseNamed(ref)
+		if err != nil {
+			return nil, fmt.Errorf("parsing reference %q: %w", ref, err)
+		}
+		cl, err := imagev2.NewContainersImageClient(ctx, named, srcContext)
+		if err != nil {
+			return nil, fmt.Errorf("creating image client for %q: %w", named, err)
+		}
+		return imagev2.NewCachingRepository(cl)
 	}
+
+	// Create resolver with FBC handler for catalog images
+	resolver := imagev2.NewResolver()
+	resolver.Register(&imagev2.FBCv0Handler{})
+
+	// Create caching resolver
+	cachingResolver := imagev2.NewCachingResolver(unpackCacheBasePath, resolver)
 
 	var localStorage storage.Instance
 	metrics.Registry.MustRegister(catalogdmetrics.RequestDurationMetric)
@@ -387,10 +401,10 @@ func run(ctx context.Context) error {
 	}
 
 	if err = (&corecontrollers.ClusterCatalogReconciler{
-		Client:      mgr.GetClient(),
-		ImageCache:  imageCache,
-		ImagePuller: imagePuller,
-		Storage:     localStorage,
+		Client:            mgr.GetClient(),
+		RepositoryFactory: repositoryFactory,
+		CachingResolver:   cachingResolver,
+		Storage:           localStorage,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterCatalog")
 		return err

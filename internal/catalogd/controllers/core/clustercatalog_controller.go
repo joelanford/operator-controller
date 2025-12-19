@@ -40,7 +40,7 @@ import (
 
 	ocv1 "github.com/operator-framework/operator-controller/api/v1"
 	"github.com/operator-framework/operator-controller/internal/catalogd/storage"
-	imageutil "github.com/operator-framework/operator-controller/internal/shared/util/image"
+	"github.com/operator-framework/operator-controller/internal/shared/util/imagev2"
 	k8sutil "github.com/operator-framework/operator-controller/internal/shared/util/k8s"
 )
 
@@ -55,8 +55,8 @@ const (
 type ClusterCatalogReconciler struct {
 	client.Client
 
-	ImageCache  imageutil.Cache
-	ImagePuller imageutil.Puller
+	RepositoryFactory imagev2.RepositoryFactory
+	CachingResolver   *imagev2.CachingResolver
 
 	Storage storage.Instance
 
@@ -252,7 +252,19 @@ func (r *ClusterCatalogReconciler) reconcile(ctx context.Context, catalog *ocv1.
 		return ctrl.Result{}, err
 	}
 
-	fsys, canonicalRef, unpackTime, err := r.ImagePuller.Pull(ctx, catalog.Name, catalog.Spec.Source.Image.Ref, r.ImageCache)
+	repo, err := r.RepositoryFactory(ctx, catalog.Spec.Source.Image.Ref)
+	if err != nil {
+		repoErr := fmt.Errorf("creating repository: %w", err)
+		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), repoErr)
+		return ctrl.Result{}, repoErr
+	}
+	defer func() {
+		if err := repo.Close(); err != nil {
+			l.Error(err, "failed to close image repository")
+		}
+	}()
+
+	fsys, canonicalRef, unpackTime, err := r.CachingResolver.Unpack(ctx, catalog.Name, repo)
 	if err != nil {
 		unpackErr := fmt.Errorf("source catalog content: %w", err)
 		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), unpackErr)
@@ -453,7 +465,7 @@ func (r *ClusterCatalogReconciler) deleteCatalogCache(ctx context.Context, catal
 		return err
 	}
 	updateStatusNotServing(&catalog.Status, catalog.GetGeneration())
-	if err := r.ImageCache.Delete(ctx, catalog.Name); err != nil {
+	if err := r.CachingResolver.Delete(ctx, catalog.Name); err != nil {
 		updateStatusProgressing(&catalog.Status, catalog.GetGeneration(), err)
 		return err
 	}

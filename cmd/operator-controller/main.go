@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/types"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -81,7 +82,7 @@ import (
 	cacheutil "github.com/operator-framework/operator-controller/internal/shared/util/cache"
 	fsutil "github.com/operator-framework/operator-controller/internal/shared/util/fs"
 	httputil "github.com/operator-framework/operator-controller/internal/shared/util/http"
-	imageutil "github.com/operator-framework/operator-controller/internal/shared/util/image"
+	"github.com/operator-framework/operator-controller/internal/shared/util/imagev2"
 	"github.com/operator-framework/operator-controller/internal/shared/util/pullsecretcache"
 	sautil "github.com/operator-framework/operator-controller/internal/shared/util/sa"
 	"github.com/operator-framework/operator-controller/internal/shared/util/tlsprofiles"
@@ -118,8 +119,8 @@ type boxcutterReconcilerConfigurator struct {
 	preflights            []applier.Preflight
 	regv1ManifestProvider applier.ManifestProvider
 	resolver              resolve.Resolver
-	imageCache            imageutil.Cache
-	imagePuller           imageutil.Puller
+	repositoryFactory     imagev2.RepositoryFactory
+	cachingResolver       *imagev2.CachingResolver
 	finalizers            crfinalizer.Finalizers
 }
 
@@ -128,8 +129,8 @@ type helmReconcilerConfigurator struct {
 	preflights            []applier.Preflight
 	regv1ManifestProvider applier.ManifestProvider
 	resolver              resolve.Resolver
-	imageCache            imageutil.Cache
-	imagePuller           imageutil.Puller
+	repositoryFactory     imagev2.RepositoryFactory
+	cachingResolver       *imagev2.CachingResolver
 	finalizers            crfinalizer.Finalizers
 	watcher               cmcache.Watcher
 }
@@ -396,29 +397,41 @@ func run() error {
 		return err
 	}
 
-	imageCache := imageutil.BundleCache(filepath.Join(cfg.cachePath, "unpack"))
-	imagePuller := &imageutil.ContainersImagePuller{
-		SourceCtxFunc: func(ctx context.Context) (*types.SystemContext, error) {
-			srcContext := &types.SystemContext{
-				DockerCertPath: cfg.pullCasDir,
-				OCICertPath:    cfg.pullCasDir,
-			}
-			logger := log.FromContext(ctx)
-			if _, err := os.Stat(authFilePath); err == nil {
-				logger.Info("using available authentication information for pulling image")
-				srcContext.AuthFilePath = authFilePath
-			} else if os.IsNotExist(err) {
-				logger.Info("no authentication information found for pulling image, proceeding without auth")
-			} else {
-				return nil, fmt.Errorf("could not stat auth file, error: %w", err)
-			}
-			return srcContext, nil
-		},
+	// Create imagev2 RepositoryFactory
+	repositoryFactory := func(ctx context.Context, ref string) (imagev2.Repository, error) {
+		srcContext := &types.SystemContext{
+			DockerCertPath: cfg.pullCasDir,
+			OCICertPath:    cfg.pullCasDir,
+		}
+		logger := log.FromContext(ctx)
+		if _, err := os.Stat(authFilePath); err == nil {
+			logger.Info("using available authentication information for pulling image")
+			srcContext.AuthFilePath = authFilePath
+		} else if os.IsNotExist(err) {
+			logger.Info("no authentication information found for pulling image, proceeding without auth")
+		} else {
+			return nil, fmt.Errorf("could not stat auth file, error: %w", err)
+		}
+		named, err := reference.ParseNamed(ref)
+		if err != nil {
+			return nil, fmt.Errorf("parsing reference %q: %w", ref, err)
+		}
+		return imagev2.NewContainersImageClient(ctx, named, srcContext)
 	}
+
+	// Create bundle content resolver with handlers
+	imageResolver := imagev2.NewResolver()
+	imageResolver.Register(&imagev2.RegistryV1Handler{})
+	if features.OperatorControllerFeatureGate.Enabled(features.HelmChartSupport) {
+		imageResolver.Register(&imagev2.HelmChartHandler{Provenance: imagev2.ProvenanceIgnore})
+	}
+
+	bundleCachePath := filepath.Join(cfg.cachePath, "unpack")
+	cachingResolver := imagev2.NewCachingResolver(bundleCachePath, imageResolver)
 
 	clusterExtensionFinalizers := crfinalizer.NewFinalizers()
 	if err := clusterExtensionFinalizers.Register(controllers.ClusterExtensionCleanupUnpackCacheFinalizer, finalizers.FinalizerFunc(func(ctx context.Context, obj client.Object) (crfinalizer.Result, error) {
-		return crfinalizer.Result{}, imageCache.Delete(ctx, obj.GetName())
+		return crfinalizer.Result{}, cachingResolver.Delete(ctx, obj.GetName())
 	})); err != nil {
 		setupLog.Error(err, "unable to register finalizer", "finalizerKey", controllers.ClusterExtensionCleanupUnpackCacheFinalizer)
 		return err
@@ -490,8 +503,8 @@ func run() error {
 			preflights:            preflights,
 			regv1ManifestProvider: regv1ManifestProvider,
 			resolver:              resolver,
-			imageCache:            imageCache,
-			imagePuller:           imagePuller,
+			repositoryFactory:     repositoryFactory,
+			cachingResolver:       cachingResolver,
 			finalizers:            clusterExtensionFinalizers,
 		}
 	} else {
@@ -500,8 +513,8 @@ func run() error {
 			preflights:            preflights,
 			regv1ManifestProvider: regv1ManifestProvider,
 			resolver:              resolver,
-			imageCache:            imageCache,
-			imagePuller:           imagePuller,
+			repositoryFactory:     repositoryFactory,
+			cachingResolver:       cachingResolver,
 			finalizers:            clusterExtensionFinalizers,
 			watcher:               ceController,
 		}
@@ -627,7 +640,7 @@ func (c *boxcutterReconcilerConfigurator) Configure(ceReconciler *controllers.Cl
 		controllers.MigrateStorage(storageMigrator),
 		controllers.RetrieveRevisionStates(revisionStatesGetter),
 		controllers.ResolveBundle(c.resolver),
-		controllers.UnpackBundle(c.imagePuller, c.imageCache),
+		controllers.UnpackBundle(c.repositoryFactory, c.cachingResolver),
 		controllers.ApplyBundleWithBoxcutter(appl),
 	}
 
@@ -738,7 +751,7 @@ func (c *helmReconcilerConfigurator) Configure(ceReconciler *controllers.Cluster
 		controllers.HandleFinalizers(c.finalizers),
 		controllers.RetrieveRevisionStates(revisionStatesGetter),
 		controllers.ResolveBundle(c.resolver),
-		controllers.UnpackBundle(c.imagePuller, c.imageCache),
+		controllers.UnpackBundle(c.repositoryFactory, c.cachingResolver),
 		controllers.ApplyBundle(appl),
 	}
 

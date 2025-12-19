@@ -31,7 +31,7 @@ import (
 	"github.com/operator-framework/operator-controller/internal/operator-controller/bundleutil"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/labels"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/resolve"
-	imageutil "github.com/operator-framework/operator-controller/internal/shared/util/image"
+	"github.com/operator-framework/operator-controller/internal/shared/util/imagev2"
 )
 
 func HandleFinalizers(f finalizer.Finalizer) ReconcileStepFunc {
@@ -134,11 +134,20 @@ func ResolveBundle(r resolve.Resolver) ReconcileStepFunc {
 	}
 }
 
-func UnpackBundle(i imageutil.Puller, cache imageutil.Cache) ReconcileStepFunc {
+func UnpackBundle(repoFactory imagev2.RepositoryFactory, cachingResolver *imagev2.CachingResolver) ReconcileStepFunc {
 	return func(ctx context.Context, state *reconcileState, ext *ocv1.ClusterExtension) (*ctrl.Result, error) {
 		l := log.FromContext(ctx)
 		l.Info("unpacking resolved bundle")
-		imageFS, _, _, err := i.Pull(ctx, ext.GetName(), state.resolvedRevisionMetadata.Image, cache)
+
+		repo, err := repoFactory(ctx, state.resolvedRevisionMetadata.Image)
+		if err != nil {
+			setStatusProgressing(ext, wrapErrorWithResolutionInfo(state.resolvedRevisionMetadata.BundleMetadata, err))
+			setInstalledStatusFromRevisionStates(ext, state.revisionStates)
+			return nil, err
+		}
+		defer repo.Close()
+
+		imageFS, _, _, err := cachingResolver.Unpack(ctx, ext.GetName(), repo)
 		if err != nil {
 			// Wrap the error passed to this with the resolution information until we have successfully
 			// installed since we intend for the progressing condition to replace the resolved condition
