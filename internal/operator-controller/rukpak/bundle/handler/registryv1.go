@@ -1,9 +1,11 @@
-package imagev2
+package handler
 
 import (
 	"context"
 
 	ocispecv1 "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/operator-framework/operator-controller/internal/shared/util/imagev2"
 )
 
 // Bundle label keys used to identify and configure registry+v1 bundles.
@@ -28,12 +30,12 @@ type RegistryV1Handler struct{}
 
 func (h *RegistryV1Handler) Name() string { return "olm.operatorframework.io/registry+v1" }
 
-func (h *RegistryV1Handler) Matches(ctx context.Context, repo Repository, desc ocispecv1.Descriptor, manifestBytes []byte) bool {
-	if !isManifest(desc.MediaType) {
+func (h *RegistryV1Handler) Matches(ctx context.Context, repo imagev2.Repository, desc ocispecv1.Descriptor, manifestBytes []byte) bool {
+	if !imagev2.IsManifest(desc.MediaType) {
 		return false
 	}
 
-	cfg, err := FetchImageConfig(ctx, repo, manifestBytes)
+	cfg, err := imagev2.FetchImageConfig(ctx, repo, manifestBytes)
 	if err != nil {
 		return false
 	}
@@ -42,8 +44,8 @@ func (h *RegistryV1Handler) Matches(ctx context.Context, repo Repository, desc o
 	return ok && mediaType == BundleMediaTypeRegistryV1
 }
 
-func (h *RegistryV1Handler) Unpack(ctx context.Context, repo Repository, desc ocispecv1.Descriptor, manifestBytes []byte, dest string) error {
-	cfg, err := FetchImageConfig(ctx, repo, manifestBytes)
+func (h *RegistryV1Handler) Unpack(ctx context.Context, repo imagev2.Repository, desc ocispecv1.Descriptor, manifestBytes []byte, dest string) error {
+	cfg, err := imagev2.FetchImageConfig(ctx, repo, manifestBytes)
 	if err != nil {
 		return err
 	}
@@ -52,14 +54,14 @@ func (h *RegistryV1Handler) Unpack(ctx context.Context, repo Repository, desc oc
 	manifestsDir := cfg.Config.Labels[BundleManifestsLabel]
 	metadataDir := cfg.Config.Labels[BundleMetadataLabel]
 
-	var filters []LayerFilter
+	var filters []imagev2.LayerFilter
 	if manifestsDir != "" && metadataDir != "" {
-		filters = append(filters, OnlyPaths(manifestsDir, metadataDir))
+		filters = append(filters, imagev2.OnlyPaths(manifestsDir, metadataDir))
 	}
-	filters = append(filters, ForceOwnershipRWX())
+	filters = append(filters, imagev2.ForceOwnershipRWX())
 
-	unpacker := &ImageManifestUnpacker{
-		Filter: CombineFilters(filters...),
+	unpacker := &imagev2.ImageManifestUnpacker{
+		Filter: imagev2.CombineFilters(filters...),
 	}
 	return unpacker.Unpack(ctx, repo, manifestBytes, dest)
 }

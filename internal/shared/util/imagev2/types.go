@@ -152,14 +152,14 @@ func ParseContent(desc ocispecv1.Descriptor, raw []byte) (*Content, error) {
 	}
 
 	switch {
-	case isIndex(desc.MediaType):
+	case IsIndex(desc.MediaType):
 		var idx ocispecv1.Index
 		if err := json.Unmarshal(raw, &idx); err != nil {
 			return nil, err
 		}
 		content.Index = &idx
 
-	case isManifest(desc.MediaType):
+	case IsManifest(desc.MediaType):
 		var man ocispecv1.Manifest
 		if err := json.Unmarshal(raw, &man); err != nil {
 			return nil, err
@@ -180,11 +180,11 @@ type Content struct {
 	Manifest *ocispecv1.Manifest
 }
 
-func isIndex(mediaType string) bool {
+func IsIndex(mediaType string) bool {
 	return mediaType == ocispecv1.MediaTypeImageIndex || mediaType == manifest.DockerV2ListMediaType
 }
 
-func isManifest(mediaType string) bool {
+func IsManifest(mediaType string) bool {
 	return mediaType == ocispecv1.MediaTypeImageManifest || mediaType == manifest.DockerV2Schema2MediaType
 }
 

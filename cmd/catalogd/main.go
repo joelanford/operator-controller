@@ -55,6 +55,7 @@ import (
 	corecontrollers "github.com/operator-framework/operator-controller/internal/catalogd/controllers/core"
 	"github.com/operator-framework/operator-controller/internal/catalogd/features"
 	"github.com/operator-framework/operator-controller/internal/catalogd/garbagecollection"
+	"github.com/operator-framework/operator-controller/internal/catalogd/image"
 	catalogdmetrics "github.com/operator-framework/operator-controller/internal/catalogd/metrics"
 	"github.com/operator-framework/operator-controller/internal/catalogd/serverutil"
 	"github.com/operator-framework/operator-controller/internal/catalogd/storage"
@@ -359,7 +360,7 @@ func run(ctx context.Context) error {
 
 	// Create resolver with FBC handler for catalog images
 	resolver := imagev2.NewResolver()
-	resolver.Register(&imagev2.FBCv0Handler{})
+	resolver.Register(&image.FBCv0Handler{})
 
 	// Create caching resolver
 	cachingResolver := imagev2.NewCachingResolver(unpackCacheBasePath, resolver)

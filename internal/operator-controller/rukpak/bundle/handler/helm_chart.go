@@ -1,4 +1,4 @@
-package imagev2
+package handler
 
 import (
 	"context"
@@ -14,6 +14,8 @@ import (
 	"helm.sh/helm/v3/pkg/provenance"
 	"helm.sh/helm/v3/pkg/registry"
 	"k8s.io/klog/v2"
+
+	"github.com/operator-framework/operator-controller/internal/shared/util/imagev2"
 )
 
 // ProvenancePolicy controls how provenance data is handled during chart unpacking.
@@ -44,8 +46,8 @@ type HelmChartHandler struct {
 
 func (h *HelmChartHandler) Name() string { return "helm.sh/chart" }
 
-func (h *HelmChartHandler) Matches(ctx context.Context, repo Repository, desc ocispecv1.Descriptor, manifestBytes []byte) bool {
-	if !isManifest(desc.MediaType) {
+func (h *HelmChartHandler) Matches(ctx context.Context, repo imagev2.Repository, desc ocispecv1.Descriptor, manifestBytes []byte) bool {
+	if !imagev2.IsManifest(desc.MediaType) {
 		return false
 	}
 
@@ -58,7 +60,7 @@ func (h *HelmChartHandler) Matches(ctx context.Context, repo Repository, desc oc
 	return manifest.Config.MediaType == registry.ConfigMediaType
 }
 
-func (h *HelmChartHandler) Unpack(ctx context.Context, repo Repository, desc ocispecv1.Descriptor, manifestBytes []byte, dest string) error {
+func (h *HelmChartHandler) Unpack(ctx context.Context, repo imagev2.Repository, desc ocispecv1.Descriptor, manifestBytes []byte, dest string) error {
 	var manifest ocispecv1.Manifest
 	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
 		return fmt.Errorf("parsing manifest: %w", err)
@@ -126,7 +128,7 @@ func (h *HelmChartHandler) verifyProvenance(chartPath string, provenancePath str
 	return nil
 }
 
-func (h *HelmChartHandler) fetchChartMetadata(ctx context.Context, repo Repository, configDesc ocispecv1.Descriptor) (*chart.Metadata, error) {
+func (h *HelmChartHandler) fetchChartMetadata(ctx context.Context, repo imagev2.Repository, configDesc ocispecv1.Descriptor) (*chart.Metadata, error) {
 	reader, err := repo.FetchBlob(ctx, configDesc)
 	if err != nil {
 		return nil, err
@@ -137,7 +139,7 @@ func (h *HelmChartHandler) fetchChartMetadata(ctx context.Context, repo Reposito
 	return &meta, errors.Join(decodeErr, reader.Close())
 }
 
-func (h *HelmChartHandler) extractLayer(ctx context.Context, repo Repository, dest, filename string, layer ocispecv1.Descriptor) error {
+func (h *HelmChartHandler) extractLayer(ctx context.Context, repo imagev2.Repository, dest, filename string, layer ocispecv1.Descriptor) error {
 	l := klog.FromContext(ctx)
 
 	reader, err := repo.FetchBlob(ctx, layer)

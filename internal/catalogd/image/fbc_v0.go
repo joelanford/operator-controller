@@ -1,4 +1,4 @@
-package imagev2
+package image
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 
 	ocispecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.podman.io/image/v5/manifest"
+
+	"github.com/operator-framework/operator-controller/internal/shared/util/imagev2"
 )
 
 // ConfigDirLabel is the label on catalog images that specifies the directory
@@ -18,9 +20,9 @@ type FBCv0Handler struct{}
 
 func (h *FBCv0Handler) Name() string { return "olm.operatorframework.io/fbc+v0" }
 
-func (h *FBCv0Handler) Matches(ctx context.Context, repo Repository, desc ocispecv1.Descriptor, manifestBytes []byte) bool {
+func (h *FBCv0Handler) Matches(ctx context.Context, repo imagev2.Repository, desc ocispecv1.Descriptor, manifestBytes []byte) bool {
 	// If this is a manifest list/index, resolve to the platform-specific manifest first
-	if isIndex(desc.MediaType) {
+	if imagev2.IsIndex(desc.MediaType) {
 		platformDesc, platformManifestBytes, err := resolvePlatformManifest(ctx, repo, manifestBytes, desc.MediaType)
 		if err != nil {
 			return false
@@ -30,11 +32,11 @@ func (h *FBCv0Handler) Matches(ctx context.Context, repo Repository, desc ocispe
 		manifestBytes = platformManifestBytes
 	}
 
-	if !isManifest(desc.MediaType) {
+	if !imagev2.IsManifest(desc.MediaType) {
 		return false
 	}
 
-	cfg, err := FetchImageConfig(ctx, repo, manifestBytes)
+	cfg, err := imagev2.FetchImageConfig(ctx, repo, manifestBytes)
 	if err != nil {
 		return false
 	}
@@ -43,9 +45,9 @@ func (h *FBCv0Handler) Matches(ctx context.Context, repo Repository, desc ocispe
 	return ok
 }
 
-func (h *FBCv0Handler) Unpack(ctx context.Context, repo Repository, desc ocispecv1.Descriptor, manifestBytes []byte, dest string) error {
+func (h *FBCv0Handler) Unpack(ctx context.Context, repo imagev2.Repository, desc ocispecv1.Descriptor, manifestBytes []byte, dest string) error {
 	// If this is a manifest list/index, resolve to the platform-specific manifest first
-	if isIndex(desc.MediaType) {
+	if imagev2.IsIndex(desc.MediaType) {
 		platformDesc, platformManifestBytes, err := resolvePlatformManifest(ctx, repo, manifestBytes, desc.MediaType)
 		if err != nil {
 			return fmt.Errorf("resolving platform manifest: %w", err)
@@ -54,24 +56,24 @@ func (h *FBCv0Handler) Unpack(ctx context.Context, repo Repository, desc ocispec
 		manifestBytes = platformManifestBytes
 	}
 
-	cfg, err := FetchImageConfig(ctx, repo, manifestBytes)
+	cfg, err := imagev2.FetchImageConfig(ctx, repo, manifestBytes)
 	if err != nil {
 		return err
 	}
 
 	configDir := cfg.Config.Labels[ConfigDirLabel]
 
-	unpacker := &ImageManifestUnpacker{
-		Filter: CombineFilters(
-			OnlyPaths(configDir),
-			ForceOwnershipRWX(),
+	unpacker := &imagev2.ImageManifestUnpacker{
+		Filter: imagev2.CombineFilters(
+			imagev2.OnlyPaths(configDir),
+			imagev2.ForceOwnershipRWX(),
 		),
 	}
 	return unpacker.Unpack(ctx, repo, manifestBytes, dest)
 }
 
 // resolvePlatformManifest selects the appropriate platform manifest from a manifest list/index.
-func resolvePlatformManifest(ctx context.Context, repo Repository, indexBytes []byte, indexMediaType string) (ocispecv1.Descriptor, []byte, error) {
+func resolvePlatformManifest(ctx context.Context, repo imagev2.Repository, indexBytes []byte, indexMediaType string) (ocispecv1.Descriptor, []byte, error) {
 	list, err := manifest.ListFromBlob(indexBytes, indexMediaType)
 	if err != nil {
 		return ocispecv1.Descriptor{}, nil, fmt.Errorf("parsing manifest list: %w", err)

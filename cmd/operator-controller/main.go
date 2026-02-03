@@ -73,6 +73,7 @@ import (
 	"github.com/operator-framework/operator-controller/internal/operator-controller/features"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/finalizers"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/resolve"
+	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/bundle/handler"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/preflights/crdupgradesafety"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/render"
 	"github.com/operator-framework/operator-controller/internal/operator-controller/rukpak/render/certproviders"
@@ -421,9 +422,9 @@ func run() error {
 
 	// Create bundle content resolver with handlers
 	imageResolver := imagev2.NewResolver()
-	imageResolver.Register(&imagev2.RegistryV1Handler{})
+	imageResolver.Register(&handler.RegistryV1Handler{})
 	if features.OperatorControllerFeatureGate.Enabled(features.HelmChartSupport) {
-		imageResolver.Register(&imagev2.HelmChartHandler{Provenance: imagev2.ProvenanceIgnore})
+		imageResolver.Register(&handler.HelmChartHandler{Provenance: handler.ProvenanceIgnore})
 	}
 
 	bundleCachePath := filepath.Join(cfg.cachePath, "unpack")
