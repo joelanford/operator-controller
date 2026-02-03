@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.podman.io/image/v5/docker"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/types"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -351,7 +352,11 @@ func run(ctx context.Context) error {
 		if err != nil {
 			return nil, fmt.Errorf("parsing reference %q: %w", ref, err)
 		}
-		cl, err := imagev2.NewContainersImageClient(ctx, named, srcContext)
+		dockerRef, err := docker.NewReference(named)
+		if err != nil {
+			return nil, fmt.Errorf("creating docker reference for %q: %w", ref, err)
+		}
+		cl, err := imagev2.NewContainersImageClient(ctx, dockerRef, srcContext)
 		if err != nil {
 			return nil, fmt.Errorf("creating image client for %q: %w", named, err)
 		}

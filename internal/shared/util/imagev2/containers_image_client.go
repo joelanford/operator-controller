@@ -2,11 +2,9 @@ package imagev2
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	ocispecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"go.podman.io/image/v5/docker"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/image/v5/pkg/blobinfocache/none"
@@ -21,17 +19,17 @@ type ContainersImageClient struct {
 	imageSource types.ImageSource
 }
 
-func NewContainersImageClient(ctx context.Context, ref reference.Named, srcCtx *types.SystemContext) (*ContainersImageClient, error) {
-	dockerRef, err := docker.NewReference(ref)
-	if err != nil {
-		return nil, err
-	}
-	imgSrc, err := dockerRef.NewImageSource(ctx, srcCtx)
+// NewContainersImageClient creates a new Repository from a types.ImageReference.
+// The ImageReference can be from any transport (docker, oci-layout, oci-archive, etc.).
+// The Named() method will return the docker reference if available, or nil for
+// non-docker transports.
+func NewContainersImageClient(ctx context.Context, imgRef types.ImageReference, srcCtx *types.SystemContext) (*ContainersImageClient, error) {
+	imgSrc, err := imgRef.NewImageSource(ctx, srcCtx)
 	if err != nil {
 		return nil, err
 	}
 	return &ContainersImageClient{
-		ref:         ref,
+		ref:         imgRef.DockerReference(),
 		imageSource: imgSrc,
 	}, nil
 }
@@ -77,18 +75,6 @@ func (c *ContainersImageClient) FetchBlob(ctx context.Context, desc ocispecv1.De
 		Reader: content.NewVerifyReader(reader, desc),
 		Closer: reader,
 	}, nil
-}
-
-func (c *ContainersImageClient) newImageSource(ctx context.Context, ref reference.Named, srcCtx *types.SystemContext) (types.ImageSource, error) {
-	dockerRef, err := docker.NewReference(ref)
-	if err != nil {
-		return nil, err
-	}
-	is, err := dockerRef.NewImageSource(ctx, srcCtx)
-	if err != nil {
-		return nil, fmt.Errorf("error creating image source: %v", err)
-	}
-	return is, nil
 }
 
 type blob struct {

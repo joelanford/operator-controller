@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.podman.io/image/v5/docker"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/types"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -417,7 +418,11 @@ func run() error {
 		if err != nil {
 			return nil, fmt.Errorf("parsing reference %q: %w", ref, err)
 		}
-		return imagev2.NewContainersImageClient(ctx, named, srcContext)
+		dockerRef, err := docker.NewReference(named)
+		if err != nil {
+			return nil, fmt.Errorf("creating docker reference for %q: %w", ref, err)
+		}
+		return imagev2.NewContainersImageClient(ctx, dockerRef, srcContext)
 	}
 
 	// Create bundle content resolver with handlers
