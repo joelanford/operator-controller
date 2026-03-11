@@ -22,7 +22,7 @@ func TestGetVersionAndRelease(t *testing.T) {
 		wantErr            bool
 	}{
 		{
-			name: "valid version",
+			name: "valid version with build metadata as legacy release",
 			pkgProperty: &property.Property{
 				Type:  property.TypePackage,
 				Value: json.RawMessage(`{"version": "1.0.0-pre+1.alpha.2"}`),
@@ -32,6 +32,35 @@ func TestGetVersionAndRelease(t *testing.T) {
 				Release: bundle.Release([]bsemver.PRVersion{
 					{VersionNum: 1, IsNum: true},
 					{VersionStr: "alpha"},
+					{VersionNum: 2, IsNum: true},
+				}),
+			},
+			wantErr: false,
+		},
+		{
+			name: "explicit release field is preferred over build metadata",
+			pkgProperty: &property.Property{
+				Type:  property.TypePackage,
+				Value: json.RawMessage(`{"version": "1.0.0+99", "release": "3"}`),
+			},
+			wantVersionRelease: &bundle.VersionRelease{
+				Version: bsemver.MustParse("1.0.0+99"),
+				Release: bundle.Release([]bsemver.PRVersion{
+					{VersionNum: 3, IsNum: true},
+				}),
+			},
+			wantErr: false,
+		},
+		{
+			name: "explicit release field with no build metadata",
+			pkgProperty: &property.Property{
+				Type:  property.TypePackage,
+				Value: json.RawMessage(`{"version": "2.0.0", "release": "1.2"}`),
+			},
+			wantVersionRelease: &bundle.VersionRelease{
+				Version: bsemver.MustParse("2.0.0"),
+				Release: bundle.Release([]bsemver.PRVersion{
+					{VersionNum: 1, IsNum: true},
 					{VersionNum: 2, IsNum: true},
 				}),
 			},
@@ -55,6 +84,14 @@ func TestGetVersionAndRelease(t *testing.T) {
 				Version: bsemver.MustParse("1.0.0+001"),
 			},
 			wantErr: false,
+		},
+		{
+			name: "invalid explicit release field",
+			pkgProperty: &property.Property{
+				Type:  property.TypePackage,
+				Value: json.RawMessage(`{"version": "1.0.0", "release": "01"}`),
+			},
+			wantErr: true,
 		},
 		{
 			name: "invalid json",
@@ -83,11 +120,14 @@ func TestGetVersionAndRelease(t *testing.T) {
 				Properties: properties,
 			}
 
-			_, err := bundleutil.GetVersionAndRelease(bundle)
+			vr, err := bundleutil.GetVersionAndRelease(bundle)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+				if tc.wantVersionRelease != nil {
+					require.Equal(t, tc.wantVersionRelease, vr)
+				}
 			}
 		})
 	}

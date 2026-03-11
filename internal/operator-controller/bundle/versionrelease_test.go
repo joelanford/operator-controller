@@ -10,6 +10,86 @@ import (
 	"github.com/operator-framework/operator-controller/internal/operator-controller/bundle"
 )
 
+func TestNewVersionRelease(t *testing.T) {
+	type testCase struct {
+		name   string
+		ver    string
+		rel    string
+		expect func(*testing.T, *bundle.VersionRelease, error)
+	}
+	for _, tc := range []testCase{
+		{
+			name: "valid version with explicit release",
+			ver:  "1.2.3",
+			rel:  "4.5",
+			expect: func(t *testing.T, vr *bundle.VersionRelease, err error) {
+				require.NoError(t, err)
+				assert.Equal(t, bsemver.MustParse("1.2.3"), vr.Version)
+				assert.Equal(t, bundle.Release([]bsemver.PRVersion{
+					{VersionNum: 4, IsNum: true},
+					{VersionNum: 5, IsNum: true},
+				}), vr.Release)
+			},
+		},
+		{
+			name: "explicit release with build metadata preserves build metadata",
+			ver:  "1.2.3+99",
+			rel:  "1",
+			expect: func(t *testing.T, vr *bundle.VersionRelease, err error) {
+				require.NoError(t, err)
+				assert.Equal(t, bsemver.MustParse("1.2.3+99"), vr.Version)
+				assert.Equal(t, []string{"99"}, vr.Version.Build)
+				assert.Equal(t, bundle.Release([]bsemver.PRVersion{
+					{VersionNum: 1, IsNum: true},
+				}), vr.Release)
+			},
+		},
+		{
+			name: "empty release returns version as-is",
+			ver:  "1.2.3+buildmeta",
+			rel:  "",
+			expect: func(t *testing.T, vr *bundle.VersionRelease, err error) {
+				require.NoError(t, err)
+				assert.Equal(t, bsemver.MustParse("1.2.3+buildmeta"), vr.Version)
+				assert.Empty(t, vr.Release)
+			},
+		},
+		{
+			name: "invalid version string",
+			ver:  "notaversion",
+			rel:  "1",
+			expect: func(t *testing.T, _ *bundle.VersionRelease, err error) {
+				assert.Error(t, err)
+			},
+		},
+		{
+			name: "invalid release string",
+			ver:  "1.2.3",
+			rel:  "01",
+			expect: func(t *testing.T, _ *bundle.VersionRelease, err error) {
+				assert.Error(t, err)
+			},
+		},
+		{
+			name: "version with prerelease and explicit release",
+			ver:  "1.2.3-alpha",
+			rel:  "2",
+			expect: func(t *testing.T, vr *bundle.VersionRelease, err error) {
+				require.NoError(t, err)
+				assert.Equal(t, bsemver.MustParse("1.2.3-alpha"), vr.Version)
+				assert.Equal(t, bundle.Release([]bsemver.PRVersion{
+					{VersionNum: 2, IsNum: true},
+				}), vr.Release)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := bundle.NewVersionRelease(tc.ver, tc.rel)
+			tc.expect(t, actual, err)
+		})
+	}
+}
+
 func TestNewLegacyRegistryV1VersionRelease(t *testing.T) {
 	type testCase struct {
 		name   string

@@ -21,15 +21,18 @@ func GetVersionAndRelease(b declcfg.Bundle) (*bundle.VersionRelease, error) {
 				return nil, fmt.Errorf("error unmarshalling package property: %w", err)
 			}
 
-			// TODO: For now, we assume that all bundles are registry+v1 bundles.
-			//   In the future, when we support other bundle formats, we should stop
-			//   using the legacy mechanism (i.e. using build metadata in the version)
-			//   to determine the bundle's release.
-			vr, err := bundle.NewLegacyRegistryV1VersionRelease(pkg.Version)
-			if err != nil {
-				return nil, err
+			// If the package property has an explicit release field, use it
+			// directly. Otherwise, fall back to the legacy registry+v1 behavior
+			// of extracting release information from build metadata.
+			//
+			// TODO: For now, we assume that all bundles without an explicit release
+			//   are registry+v1 bundles. In the future, when we support other bundle
+			//   formats, we should stop using the legacy mechanism (i.e. using build
+			//   metadata in the version) to determine the bundle's release.
+			if pkg.Release != "" {
+				return bundle.NewVersionRelease(pkg.Version, pkg.Release)
 			}
-			return vr, nil
+			return bundle.NewLegacyRegistryV1VersionRelease(pkg.Version)
 		}
 	}
 	return nil, fmt.Errorf("no package property found in bundle %q", b.Name)

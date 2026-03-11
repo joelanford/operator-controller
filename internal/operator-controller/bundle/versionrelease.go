@@ -10,6 +10,30 @@ import (
 	slicesutil "github.com/operator-framework/operator-controller/internal/shared/util/slices"
 )
 
+// NewVersionRelease parses a version string and a separate release string into a VersionRelease.
+// The release string, if non-empty, is used directly as the Release field. Any build metadata in
+// the version string is preserved as-is. If the release string is empty, the version string is
+// parsed with no release extraction.
+func NewVersionRelease(vStr, relStr string) (*VersionRelease, error) {
+	vers, err := bsemver.Parse(vStr)
+	if err != nil {
+		return nil, err
+	}
+
+	vr := &VersionRelease{
+		Version: vers,
+	}
+
+	if relStr != "" {
+		rel, err := NewRelease(relStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid release %q: %w", relStr, err)
+		}
+		vr.Release = rel
+	}
+	return vr, nil
+}
+
 // NewLegacyRegistryV1VersionRelease parses a registry+v1 bundle version string and returns a
 // VersionRelease. Some registry+v1 bundles utilize the build metadata field of the semver version
 // as release information (a semver spec violation maintained for backward compatibility). When the
