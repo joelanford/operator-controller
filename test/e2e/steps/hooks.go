@@ -194,9 +194,10 @@ func ScenarioCleanup(ctx context.Context, _ *godog.Scenario, err error) (context
 		forDeletion = append(forDeletion, resource{name: sc.clusterObjectSetName, kind: "clusterobjectset"})
 	}
 	forDeletion = append(forDeletion, resource{name: sc.namespace, kind: "namespace"})
+
 	for _, r := range forDeletion {
 		go func(res resource) {
-			args := []string{"delete", res.kind, res.name, "--ignore-not-found=true"}
+			args := []string{"delete", res.kind, res.name, "--ignore-not-found=true", "--wait=false"}
 			if res.namespace != "" {
 				args = append(args, "-n", res.namespace)
 			}
