@@ -80,7 +80,6 @@ var (
 	devMode      = false
 	featureGates = map[featuregate.Feature]bool{
 		features.WebhookProviderCertManager:        true,
-		features.PreflightPermissions:              false,
 		features.SingleOwnNamespaceInstallSupport:  false,
 		features.WebhookProviderOpenshiftServiceCA: false,
 		features.HelmChartSupport:                  false,

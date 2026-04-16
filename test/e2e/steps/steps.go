@@ -1287,17 +1287,11 @@ func ServiceAccountWithNeededPermissionsIsAvailableInTestNamespace(ctx context.C
 }
 
 // ServiceAccountWithoutCreatePermissionsIsAvailableInTestNamespace creates a ServiceAccount with permissions that
-// intentionally exclude the "create" verb to test preflight permission validation for Boxcutter applier.
-// This is used to verify that the preflight check properly detects missing CREATE permissions.
-// Note: This function requires both @BoxcutterRuntime and @PreflightPermissions tags.
+// intentionally exclude the "create" verb.
 func ServiceAccountWithoutCreatePermissionsIsAvailableInTestNamespace(ctx context.Context, serviceAccount string) error {
 	// This test is only valid with Boxcutter runtime enabled
 	if !isFeatureGateEnabled(features.BoxcutterRuntime) {
 		return fmt.Errorf("this step requires BoxcutterRuntime feature gate to be enabled")
-	}
-	// It also requires preflight permissions checks to be enabled
-	if !isFeatureGateEnabled(features.PreflightPermissions) {
-		return fmt.Errorf("this step requires PreflightPermissions feature gate to be enabled")
 	}
 	rbacTemplate := fmt.Sprintf("%s-boxcutter-no-create-rbac-template.yaml", serviceAccount)
 	return applyPermissionsToServiceAccount(ctx, serviceAccount, rbacTemplate)

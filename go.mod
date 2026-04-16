@@ -31,7 +31,6 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.podman.io/image/v5 v5.39.2
 	golang.org/x/exp v0.0.0-20260209203927-2842357ff358
-	golang.org/x/mod v0.34.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/tools v0.43.0
 	helm.sh/helm/v3 v3.20.2
@@ -39,11 +38,10 @@ require (
 	k8s.io/apiextensions-apiserver v0.35.3
 	k8s.io/apimachinery v0.35.3
 	k8s.io/apiserver v0.35.3
-	k8s.io/cli-runtime v0.35.1
-	k8s.io/client-go v1.5.2
+	k8s.io/cli-runtime v0.35.3
+	k8s.io/client-go v0.35.3
 	k8s.io/component-base v0.35.3
 	k8s.io/klog/v2 v2.140.0
-	k8s.io/kubernetes v1.35.0
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
 	pkg.package-operator.run/boxcutter v0.13.1
 	sigs.k8s.io/controller-runtime v0.23.3
@@ -53,10 +51,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0
 )
 
-require (
-	k8s.io/component-helpers v0.35.0 // indirect
-	k8s.io/kube-openapi v0.0.0-20260319004828-5883c5ee87b9 // indirect
-)
+require k8s.io/kube-openapi v0.0.0-20260319004828-5883c5ee87b9 // indirect
 
 require (
 	cel.dev/expr v0.25.1 // indirect
@@ -231,6 +226,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
@@ -248,7 +244,6 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/controller-manager v0.33.2 // indirect
 	k8s.io/kubectl v0.35.1 // indirect
 	oras.land/oras-go/v2 v2.6.0 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.34.0 // indirect
@@ -260,63 +255,3 @@ require (
 )
 
 retract v1.5.0 // contains filename with ':' which causes failure creating module zip file
-
-replace k8s.io/api => k8s.io/api v0.35.0
-
-replace k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.35.0
-
-replace k8s.io/apimachinery => k8s.io/apimachinery v0.35.0
-
-replace k8s.io/apiserver => k8s.io/apiserver v0.35.0
-
-replace k8s.io/cli-runtime => k8s.io/cli-runtime v0.35.0
-
-replace k8s.io/client-go => k8s.io/client-go v0.35.0
-
-replace k8s.io/cloud-provider => k8s.io/cloud-provider v0.35.0
-
-replace k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.35.0
-
-replace k8s.io/code-generator => k8s.io/code-generator v0.35.0
-
-replace k8s.io/component-base => k8s.io/component-base v0.35.0
-
-replace k8s.io/component-helpers => k8s.io/component-helpers v0.35.0
-
-replace k8s.io/controller-manager => k8s.io/controller-manager v0.35.0
-
-replace k8s.io/cri-api => k8s.io/cri-api v0.35.0
-
-replace k8s.io/cri-client => k8s.io/cri-client v0.35.0
-
-replace k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.35.0
-
-replace k8s.io/dynamic-resource-allocation => k8s.io/dynamic-resource-allocation v0.35.0
-
-replace k8s.io/endpointslice => k8s.io/endpointslice v0.35.0
-
-replace k8s.io/externaljwt => k8s.io/externaljwt v0.35.0
-
-replace k8s.io/kms => k8s.io/kms v0.35.0
-
-replace k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.35.0
-
-replace k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.35.0
-
-replace k8s.io/kube-proxy => k8s.io/kube-proxy v0.35.0
-
-replace k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.35.0
-
-replace k8s.io/kubectl => k8s.io/kubectl v0.35.0
-
-replace k8s.io/kubelet => k8s.io/kubelet v0.35.0
-
-replace k8s.io/kubernetes => k8s.io/kubernetes v1.35.0
-
-replace k8s.io/metrics => k8s.io/metrics v0.35.0
-
-replace k8s.io/mount-utils => k8s.io/mount-utils v0.35.0
-
-replace k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.35.0
-
-replace k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.35.0

@@ -118,41 +118,6 @@ Feature: Recover cluster extension from errors that might occur during its lifet
     And ClusterExtension reports Progressing as True with Reason Succeeded
     And ClusterExtension reports Installed as True
 
-  @PreflightPermissions
-  Scenario: ClusterExtension installation succeeds after service account gets the required missing permissions to
-    manage the bundle's resources
-    Given ServiceAccount "olm-sa" is available in test namespace
-    And ClusterExtension is applied
-      """
-      apiVersion: olm.operatorframework.io/v1
-      kind: ClusterExtension
-      metadata:
-        name: ${NAME}
-      spec:
-        namespace: ${TEST_NAMESPACE}
-        serviceAccount:
-          name: olm-sa
-        source:
-          sourceType: Catalog
-          catalog:
-            packageName: ${PACKAGE:test}
-            selector:
-              matchLabels:
-                "olm.operatorframework.io/metadata.name": ${CATALOG:test}
-      """
-    And ClusterExtension reports Progressing as True with Reason Retrying and Message includes:
-      """
-      pre-authorization failed: service account requires the following permissions to manage cluster extension:
-      """
-    And ClusterExtension reports Progressing as True with Reason Retrying and Message includes:
-      """
-      Namespace:"" APIGroups:[apiextensions.k8s.io] Resources:[customresourcedefinitions] ResourceNames:[e2e-${SCENARIO_ID}tests.e2e-${SCENARIO_ID}.e2e.operatorframework.io] Verbs:[delete,get,patch,update]
-      """
-    When ServiceAccount "olm-sa" with needed permissions is available in test namespace
-    Then ClusterExtension is available
-    And ClusterExtension reports Progressing as True with Reason Succeeded
-    And ClusterExtension reports Installed as True
-
   # CATALOG DELETION RESILIENCE SCENARIOS
 
   Scenario: Auto-healing continues working after catalog deletion
