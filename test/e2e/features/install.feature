@@ -97,33 +97,6 @@ Feature: Install ClusterExtension
       found bundles for package "${PACKAGE:test}" in multiple catalogs with the same priority
       """
 
-  Scenario: Report error when ServiceAccount does not exist
-    Given a catalog "test" with packages:
-      | package | version | channel | replaces | contents                   |
-      | test    | 1.2.0   | beta    |          | CRD, Deployment, ConfigMap |
-    When ClusterExtension is applied
-      """
-      apiVersion: olm.operatorframework.io/v1
-      kind: ClusterExtension
-      metadata:
-        name: ${NAME}
-      spec:
-        namespace: ${TEST_NAMESPACE}
-        serviceAccount:
-          name: non-existent-sa
-        source:
-          sourceType: Catalog
-          catalog:
-            packageName: ${PACKAGE:test}
-            selector:
-              matchLabels:
-                "olm.operatorframework.io/metadata.name": ${CATALOG:test}
-      """
-    Then ClusterExtension reports Progressing as True with Reason Retrying and Message includes:
-      """
-      operation cannot proceed due to the following validation error(s): service account "non-existent-sa" not found in namespace "${TEST_NAMESPACE}"
-      """
-
   @SingleOwnNamespaceInstallSupport
   Scenario: watchNamespace config is required for extension supporting single namespace
     Given a catalog "test" with packages:

@@ -232,8 +232,6 @@ func (r *SimpleRevisionGenerator) buildClusterObjectSet(
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
-	annotations[labels.ServiceAccountNameKey] = ext.Spec.ServiceAccount.Name
-	annotations[labels.ServiceAccountNamespaceKey] = ext.Spec.Namespace
 
 	phases := PhaseSort(objects)
 

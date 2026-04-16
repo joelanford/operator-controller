@@ -100,12 +100,10 @@ func Test_SimpleRevisionGenerator_GenerateRevisionFromHelmRelease(t *testing.T) 
 
 	expected := ocv1ac.ClusterObjectSet("test-123-1").
 		WithAnnotations(map[string]string{
-			"olm.operatorframework.io/bundle-name":               "my-bundle",
-			"olm.operatorframework.io/bundle-reference":          "bundle-ref",
-			"olm.operatorframework.io/bundle-version":            "1.2.0",
-			"olm.operatorframework.io/package-name":              "my-package",
-			"olm.operatorframework.io/service-account-name":      "test-sa",
-			"olm.operatorframework.io/service-account-namespace": "test-namespace",
+			"olm.operatorframework.io/bundle-name":      "my-bundle",
+			"olm.operatorframework.io/bundle-reference": "bundle-ref",
+			"olm.operatorframework.io/bundle-version":   "1.2.0",
+			"olm.operatorframework.io/package-name":     "my-package",
 		}).
 		WithLabels(map[string]string{
 			labels.OwnerKindKey: ocv1.ClusterExtensionKind,

@@ -1103,12 +1103,10 @@ func newTestClusterObjectSet(t *testing.T, revisionName string, ext *ocv1.Cluste
 			UID:        types.UID(revisionName),
 			Generation: int64(1),
 			Annotations: map[string]string{
-				labels.PackageNameKey:             "some-package",
-				labels.BundleNameKey:              "some-package.v1.0.0",
-				labels.BundleReferenceKey:         "registry.io/some-repo/some-package:v1.0.0",
-				labels.BundleVersionKey:           "1.0.0",
-				labels.ServiceAccountNameKey:      ext.Spec.ServiceAccount.Name,
-				labels.ServiceAccountNamespaceKey: ext.Spec.Namespace,
+				labels.PackageNameKey:     "some-package",
+				labels.BundleNameKey:      "some-package.v1.0.0",
+				labels.BundleReferenceKey: "registry.io/some-repo/some-package:v1.0.0",
+				labels.BundleVersionKey:   "1.0.0",
 			},
 			Labels: map[string]string{
 				labels.OwnerNameKey: ext.Name,
@@ -1635,16 +1633,14 @@ func Test_effectiveCollisionProtection(t *testing.T) {
 func Test_ClusterObjectSetReconciler_getScopedClient_Errors(t *testing.T) {
 	testScheme := newScheme(t)
 
-	t.Run("works with serviceAccount annotation and without owner label", func(t *testing.T) {
+	t.Run("works without owner label", func(t *testing.T) {
 		rev := &ocv1.ClusterObjectSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   "test-rev-1",
 				UID:    types.UID("test-rev-1"),
 				Labels: map[string]string{},
 				Annotations: map[string]string{
-					labels.ServiceAccountNameKey:      "test-sa",
-					labels.ServiceAccountNamespaceKey: "test-ns",
-					labels.BundleVersionKey:           "1.0.0",
+					labels.BundleVersionKey: "1.0.0",
 				},
 			},
 			Spec: ocv1.ClusterObjectSetSpec{
@@ -1679,7 +1675,7 @@ func Test_ClusterObjectSetReconciler_getScopedClient_Errors(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("missing serviceAccount annotation", func(t *testing.T) {
+	t.Run("factory create error", func(t *testing.T) {
 		rev := &ocv1.ClusterObjectSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-rev-1",
@@ -1700,7 +1696,7 @@ func Test_ClusterObjectSetReconciler_getScopedClient_Errors(t *testing.T) {
 			Build()
 
 		failingFactory := &mockRevisionEngineFactory{
-			createErr: errors.New("missing serviceAccount name annotation"),
+			createErr: errors.New("failed to create client"),
 		}
 
 		reconciler := &controllers.ClusterObjectSetReconciler{
@@ -1714,7 +1710,7 @@ func Test_ClusterObjectSetReconciler_getScopedClient_Errors(t *testing.T) {
 		})
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "serviceAccount")
+		require.Contains(t, err.Error(), "failed to create client")
 	})
 
 	t.Run("factory fails to create engine", func(t *testing.T) {
